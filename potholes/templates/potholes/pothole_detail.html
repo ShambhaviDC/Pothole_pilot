@@ -8,23 +8,22 @@
         <div class="col-md-8">
             <!-- Pothole Image -->
             {% if pothole.image %}
-                <img src="{{ pothole.image.url }}" class="img-fluid rounded mb-4" alt="Pothole Image">
+            <img src="{{ pothole.image.url }}" class="img-fluid rounded mb-4" alt="Pothole Image">
             {% else %}
-                <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 400px;">
-                    <i class="bi bi-image text-muted" style="font-size: 80px;"></i>
-                </div>
+            <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 400px;">
+                <i class="bi bi-image text-muted" style="font-size: 80px;"></i>
+            </div>
             {% endif %}
 
             <!-- Pothole Details -->
             <div class="card mb-4">
                 <div class="card-body">
                     <h3 class="card-title">{{ pothole.description }}</h3>
-                    
+
                     <div class="row mb-4">
                         <div class="col-md-6">
-                            <h6 class="text-muted">Reported By</h6>
-                            <p><strong>{{ pothole.user.username }}</strong></p>
-                            <small class="text-muted">Truth Score: <span class="badge bg-info">{{ pothole.user.profile.truth_score }}</span></small>
+                            <h6 class="text-muted">Issue Reference</h6>
+                            <p><strong>Issue #{{ pothole.id }}</strong></p>
                         </div>
                         <div class="col-md-6">
                             <h6 class="text-muted">Severity</h6>
@@ -53,15 +52,16 @@
                     </div>
 
                     {% if pothole.assigned_worker %}
-                        <hr>
-                        <h6 class="text-muted">Assigned Worker</h6>
-                        <p>{{ pothole.assigned_worker }}</p>
+                    <hr>
+                    <h6 class="text-muted">Assigned Worker</h6>
+                    <p>{{ pothole.assigned_worker }}</p>
                     {% endif %}
 
                     {% if pothole.completion_image %}
-                        <hr>
-                        <h6 class="text-muted">Completion Image</h6>
-                        <img src="{{ pothole.completion_image.url }}" class="img-fluid rounded" alt="Completion Image" style="max-height: 300px;">
+                    <hr>
+                    <h6 class="text-muted">Completion Image</h6>
+                    <img src="{{ pothole.completion_image.url }}" class="img-fluid rounded" alt="Completion Image"
+                        style="max-height: 300px;">
                     {% endif %}
                 </div>
             </div>
@@ -72,7 +72,8 @@
                     <h5 class="card-title">Location</h5>
                     <p><small class="text-muted">Latitude: {{ pothole.latitude|floatformat:6 }}</small></p>
                     <p><small class="text-muted">Longitude: {{ pothole.longitude|floatformat:6 }}</small></p>
-                    <a href="https://maps.google.com/?q={{ pothole.latitude }},{{ pothole.longitude }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                    <a href="https://maps.google.com/?q={{ pothole.latitude }},{{ pothole.longitude }}" target="_blank"
+                        class="btn btn-sm btn-outline-primary">
                         <i class="bi bi-map"></i> Open in Google Maps
                     </a>
                 </div>
@@ -87,8 +88,8 @@
                         {{ pothole.created_at|naturaltime }}
                     </p>
                     {% if pothole.updated_at != pothole.created_at %}
-                        <h6 class="text-muted">Last Updated</h6>
-                        <p>{{ pothole.updated_at|naturaltime }}</p>
+                    <h6 class="text-muted">Last Updated</h6>
+                    <p>{{ pothole.updated_at|naturaltime }}</p>
                     {% endif %}
                 </div>
             </div>
@@ -102,11 +103,13 @@
                     <h5>Help Verify This Report</h5>
                     <p class="text-muted mb-4">Your vote helps confirm this pothole exists</p>
                     {% if user.is_authenticated %}
-                        <button class="btn btn-lg w-100 {% if user_has_voted %}btn-primary{% else %}btn-outline-primary{% endif %}" id="upvote-btn" data-pothole-id="{{ pothole.id }}">
-                            <i class="bi bi-hand-thumbs-up"></i> {{ pothole.vote_count }} Votes
-                        </button>
+                    <button
+                        class="btn btn-lg w-100 {% if user_has_voted %}btn-primary{% else %}btn-outline-primary{% endif %}"
+                        id="upvote-btn" data-pothole-id="{{ pothole.id }}">
+                        <i class="bi bi-hand-thumbs-up"></i> {{ pothole.vote_count }} Votes
+                    </button>
                     {% else %}
-                        <p class="text-muted"><a href="{% url 'login' %}">Login</a> to vote</p>
+                    <p class="text-muted"><a href="{% url 'login' %}">Login</a> to vote</p>
                     {% endif %}
                 </div>
             </div>
@@ -116,24 +119,25 @@
                 <div class="card-body">
                     <h6 class="text-muted">Current Status</h6>
                     <div class="status-badge mb-3">
-                        <span class="badge bg-light text-dark" style="font-size: 1.2rem; padding: 10px;">{{ pothole.status }}</span>
+                        <span class="badge bg-light text-dark" style="font-size: 1.2rem; padding: 10px;">{{
+                            pothole.status }}</span>
                     </div>
                     {% if pothole.status == 'Fixed' %}
-                        <div class="alert alert-success">
-                            <i class="bi bi-check-circle"></i> This pothole has been fixed!
-                        </div>
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle"></i> This pothole has been fixed!
+                    </div>
                     {% elif pothole.status == 'In Progress' %}
-                        <div class="alert alert-warning">
-                            <i class="bi bi-hourglass-split"></i> This pothole is being fixed
-                        </div>
+                    <div class="alert alert-warning">
+                        <i class="bi bi-hourglass-split"></i> This pothole is being fixed
+                    </div>
                     {% elif pothole.status == 'Invalid' %}
-                        <div class="alert alert-danger">
-                            <i class="bi bi-x-circle"></i> This report was marked as invalid
-                        </div>
+                    <div class="alert alert-danger">
+                        <i class="bi bi-x-circle"></i> This report was marked as invalid
+                    </div>
                     {% else %}
-                        <div class="alert alert-info">
-                            <i class="bi bi-info-circle"></i> Waiting for municipality review
-                        </div>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> Waiting for municipality review
+                    </div>
                     {% endif %}
                 </div>
             </div>
@@ -142,10 +146,12 @@
             <div class="card">
                 <div class="card-body">
                     <h6 class="text-muted mb-3">Share</h6>
-                    <a href="https://twitter.com/intent/tweet?text=Help report potholes on Pothole Pilot: {{ request.build_absolute_uri }}" target="_blank" class="btn btn-outline-primary w-100 mb-2">
+                    <a href="https://twitter.com/intent/tweet?text=Help report potholes on Pothole Pilot: {{ request.build_absolute_uri }}"
+                        target="_blank" class="btn btn-outline-primary w-100 mb-2">
                         <i class="bi bi-twitter"></i> Twitter
                     </a>
-                    <a href="https://www.facebook.com/sharer/sharer.php?u={{ request.build_absolute_uri }}" target="_blank" class="btn btn-outline-primary w-100">
+                    <a href="https://www.facebook.com/sharer/sharer.php?u={{ request.build_absolute_uri }}"
+                        target="_blank" class="btn btn-outline-primary w-100">
                         <i class="bi bi-facebook"></i> Facebook
                     </a>
                 </div>
@@ -156,11 +162,11 @@
 
 <script>
     const upvoteBtn = document.getElementById('upvote-btn');
-    if(upvoteBtn) {
-        upvoteBtn.addEventListener('click', function() {
+    if (upvoteBtn) {
+        upvoteBtn.addEventListener('click', function () {
             const potholeId = this.dataset.potholeId;
             const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
-            
+
             fetch(`/pothole/${potholeId}/upvote/`, {
                 method: 'POST',
                 headers: {
@@ -170,15 +176,15 @@
                 },
                 body: JSON.stringify({})
             })
-            .then(response => response.json())
-            .then(data => {
-                if(data.success) {
-                    this.innerHTML = `<i class="bi bi-hand-thumbs-up"></i> ${data.vote_count} Votes`;
-                    this.classList.toggle('btn-primary', data.voted);
-                    this.classList.toggle('btn-outline-primary', !data.voted);
-                }
-            })
-            .catch(error => console.error('Error:', error));
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        this.innerHTML = `<i class="bi bi-hand-thumbs-up"></i> ${data.vote_count} Votes`;
+                        this.classList.toggle('btn-primary', data.voted);
+                        this.classList.toggle('btn-outline-primary', !data.voted);
+                    }
+                })
+                .catch(error => console.error('Error:', error));
         });
     }
 </script>

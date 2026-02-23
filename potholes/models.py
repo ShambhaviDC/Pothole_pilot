@@ -52,7 +52,7 @@ class Pothole(models.Model):
         ('Invalid', 'Invalid'),
     ]
     
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='potholes')
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='potholes', null=True, blank=True)
     image = models.ImageField(upload_to='potholes/')
     latitude = models.FloatField()
     longitude = models.FloatField()

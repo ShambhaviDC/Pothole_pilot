@@ -14,7 +14,7 @@
                     <h4>{{ user.get_full_name|default:user.username }}</h4>
                     <p class="text-muted">@{{ user.username }}</p>
                     {% if user.email %}
-                        <p class="mb-0"><small>{{ user.email }}</small></p>
+                    <p class="mb-0"><small>{{ user.email }}</small></p>
                     {% endif %}
                 </div>
             </div>
@@ -24,11 +24,7 @@
                 <div class="card-body">
                     <h5 class="card-title">Profile Statistics</h5>
                     <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <h6 class="text-muted">Truth Score</h6>
-                            <h3 class="text-primary">{{ profile.truth_score }}</h3>
-                            <p class="small text-muted">Your credibility score based on accurate reports</p>
-                        </div>
+
                         <div class="col-md-6 mb-3">
                             <h6 class="text-muted">Total Reports</h6>
                             <h3 class="text-success">{{ profile.total_reports }}</h3>
@@ -37,35 +33,28 @@
                         <div class="col-md-6">
                             <h6 class="text-muted">Reports by Status</h6>
                             <ul class="list-unstyled">
-                                <li><small><i class="bi bi-circle-fill text-primary"></i> Pending: {{ user.potholes.filter.status="Pending"|length }}</small></li>
-                                <li><small><i class="bi bi-circle-fill text-warning"></i> In Progress: {{ user.potholes.filter.status="In Progress"|length }}</small></li>
-                                <li><small><i class="bi bi-circle-fill text-success"></i> Fixed: {{ user.potholes.filter.status="Fixed"|length }}</small></li>
+                                <li><small><i class="bi bi-circle-fill text-primary"></i> Pending: {{
+                                        user.potholes.filter.status="Pending"|length }}</small></li>
+                                <li><small><i class="bi bi-circle-fill text-warning"></i> In Progress: {{
+                                        user.potholes.filter.status="In Progress"|length }}</small></li>
+                                <li><small><i class="bi bi-circle-fill text-success"></i> Fixed: {{
+                                        user.potholes.filter.status="Fixed"|length }}</small></li>
                             </ul>
                         </div>
                         <div class="col-md-6">
                             <h6 class="text-muted">Community Activity</h6>
                             <ul class="list-unstyled">
-                                <li><small><i class="bi bi-hand-thumbs-up"></i> Votes Received: {{ user.potholes.all|length }}</small></li>
-                                <li><small><i class="bi bi-star-fill text-warning"></i> Member Since: {{ user.date_joined|date:"M d, Y" }}</small></li>
+                                <li><small><i class="bi bi-hand-thumbs-up"></i> Votes Received: {{
+                                        user.potholes.all|length }}</small></li>
+                                <li><small><i class="bi bi-star-fill text-warning"></i> Member Since: {{
+                                        user.date_joined|date:"M d, Y" }}</small></li>
                             </ul>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">About Truth Score</h5>
-                    <p class="card-text">Your truth score reflects the accuracy and usefulness of your pothole reports:</p>
-                    <ul>
-                        <li><strong>+1</strong>: When someone upvotes your report</li>
-                        <li><strong>+5</strong>: When your reported pothole is marked as "In Progress"</li>
-                        <li><strong>+10</strong>: When your reported pothole is marked as "Fixed"</li>
-                        <li><strong>-1</strong>: When someone removes their upvote</li>
-                        <li><strong>-10</strong>: When your report is marked as "Invalid"</li>
-                    </ul>
-                </div>
-            </div>
+
         </div>
     </div>
 </div>

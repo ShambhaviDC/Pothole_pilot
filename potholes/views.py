@@ -114,20 +114,21 @@ def user_profile(request):
     return render(request, 'potholes/user_profile.html', context)
 
 
-@login_required
 def report_pothole(request):
     """Report pothole view."""
     if request.method == 'POST':
         form = PotholeReportForm(request.POST, request.FILES)
         if form.is_valid():
             pothole = form.save(commit=False)
-            pothole.user = request.user
+            if request.user.is_authenticated:
+                pothole.user = request.user
             pothole.save()
             
-            # Update user total reports
-            profile = request.user.profile
-            profile.total_reports += 1
-            profile.save()
+            # Update user total reports (only if logged in)
+            if request.user.is_authenticated:
+                profile = request.user.profile
+                profile.total_reports += 1
+                profile.save()
             
             messages.success(request, 'Pothole reported successfully!')
             return redirect('community_feed')
@@ -169,9 +170,7 @@ def community_feed(request):
         user_votes = Vote.objects.filter(pothole=OuterRef('pk'), user=request.user)
         potholes = potholes.annotate(user_has_voted=Exists(user_votes))
 
-    # Add truth score as a direct attribute for reliable rendering
-    for p in potholes:
-        p.author_truth_score = p.user.profile.truth_score
+
     
     context = {
         'potholes': potholes,
@@ -197,22 +196,12 @@ def upvote_pothole(request, pothole_id):
         vote.delete()
         # Recalculate accurately
         pothole.vote_count = pothole.votes.count()
-        # Reduce truth score if was from reporter
-        if pothole.user.id != user.id:
-            from django.db.models import F
-            pothole.user.profile.truth_score = F('truth_score') - 1
-            pothole.user.profile.save()
         voted = False
     else:
         # Add vote
         Vote.objects.get_or_create(user=user, pothole=pothole)
         # Recalculate accurately
         pothole.vote_count = pothole.votes.count()
-        # Increase truth score of reporter
-        if pothole.user.id != user.id:
-            from django.db.models import F
-            pothole.user.profile.truth_score = F('truth_score') + 1
-            pothole.user.profile.save()
         voted = True
     
     pothole.save()
@@ -343,30 +332,16 @@ def update_pothole_status(request, pothole_id):
         if form.is_valid():
             pothole = form.save()
             
-            # Update truth score based on status change
+            # Create notification for reporter (only if not anonymous)
             reporter = pothole.user
-            profile = reporter.profile
-            
-            if pothole.status == 'Fixed' and old_status != 'Fixed':
-                profile.truth_score += 10
-                messages.success(request, f'Truth score +10 for {reporter.username}')
-            elif pothole.status == 'In Progress' and old_status != 'In Progress':
-                profile.truth_score += 5
-                messages.success(request, f'Truth score +5 for {reporter.username}')
-            elif pothole.status == 'Invalid' and old_status != 'Invalid':
-                profile.truth_score -= 10
-                messages.success(request, f'Truth score -10 for {reporter.username}')
-            
-            profile.save()
-            
-            # Create notification for reporter
-            status_message = f"Your pothole report has been marked as '{pothole.status}'."
-            Notification.objects.create(
-                user=reporter,
-                pothole=pothole,
-                notification_type=pothole.status.lower().replace(' ', '_'),
-                message=status_message
-            )
+            if reporter:
+                status_message = f"Your pothole report has been marked as '{pothole.status}'."
+                Notification.objects.create(
+                    user=reporter,
+                    pothole=pothole,
+                    notification_type=pothole.status.lower().replace(' ', '_'),
+                    message=status_message
+                )
             
             messages.success(request, 'Pothole updated successfully!')
             return redirect('admin_dashboard')
