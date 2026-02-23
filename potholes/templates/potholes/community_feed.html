@@ -66,7 +66,7 @@
                         <div>
                             <h5 class="card-title mb-1">{{ pothole.user.username }}</h5>
                             <small class="text-muted">Truth Score: <span class="badge bg-info">{{
-                                    pothole.author_truth_score }}</span></small>
+                                    pothole.user.profile.truth_score }}</span></small>
                         </div>
                         <span class="badge 
                                     {% if pothole.severity == 'High' %}bg-danger

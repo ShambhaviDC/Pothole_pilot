@@ -82,26 +82,56 @@ class PotholeReportForm(forms.ModelForm):
             # For this hackathon version, we use a color profile check.
             # Asphalt/Potholes are usually dark/grey/brown.
             
-            # 1. Convert to RGB to analyze pixels
+            # 1. Convert to RGB and resize
             img = img.convert('RGB')
-            img.thumbnail((100, 100)) # Resize for fast processing
+            img.thumbnail((60, 60)) 
             
             pixels = list(img.getdata())
-            grey_pixel_count = 0
+            road_score = 0
+            total_pixels = len(pixels)
             
-            # Count pixels that match a typical road/asphalt color profile (shades of grey/dark)
+            import statistics
+            brightness_values = []
+            saturations = []
+            
             for r, g, b in pixels:
-                # Check if r, g, b are close to each other (grey) or very dark
-                if abs(r - g) < 20 and abs(g - b) < 20 and (r + g + b) < 600:
-                    grey_pixel_count += 1
+                # Saturation (high = colorful/indoor/natural, low = asphalt/concrete)
+                mx, mn = max(r, g, b), min(r, g, b)
+                sat = mx - mn
+                saturations.append(sat)
+                
+                # Brightness
+                bright = (r + g + b) / 3
+                brightness_values.append(bright)
+                
+                # --- ULTRA-STRICT ROAD PROFILE ---
+                # Real roads/potholes are almost entirely shades of Grey, Mud-Brown, or Black
+                if sat < 25: # Very strict neutral check
+                    if bright < 70: road_score += 1.8 # Dark shadows/hole (high weight)
+                    elif bright < 160: road_score += 1.2 # Grey asphalt
+                elif sat < 40 and r > g and g > b: # Very specific mud/dirt brown
+                    road_score += 0.6
+                else:
+                    # HEAVY PENALTY for any vibrant color (Red, Blue, Green, Orange)
+                    # This will instantly kill photos of desks, clothing, electronics, etc.
+                    if sat > 50:
+                        road_score -= 3.0
             
-            # If less than 20% of the image matches road-like colors, reject it
-            grey_percentage = (grey_pixel_count / len(pixels)) * 100
+            # --- AGGREGATE METRICS ---
+            avg_sat = sum(saturations) / total_pixels
+            # Variance helps ignore flat surfaces like a grey wall or uniform carpet
+            variance = statistics.stdev(brightness_values) if len(brightness_values) > 1 else 0
+            road_ratio = (road_score / total_pixels) * 100
             
-            if grey_percentage < 15:
+            # --- FINAL HEURISTIC GATE ---
+            # 1. Global Saturation must be extremely low (Avg < 35)
+            # 2. Road score must be dominant (Ratio > 45)
+            # 3. Must have enough texture/shadow (Variance > 15)
+            if avg_sat > 35 or road_ratio < 45 or variance < 15:
                 raise ValidationError(
-                    "AI Analysis Failed: This image does not appear to contain a pothole or road surface. "
-                    "Please upload a clear photo of the road damage."
+                    "AI Security Check Failed: This image does not appear to be a road surface. "
+                    "Please ensure you are taking a close-up photo of the pothole itself. "
+                    "Avoid having colorful objects, people, or indoor backgrounds in the frame."
                 )
             # --- END SIMULATED AI ---
 
