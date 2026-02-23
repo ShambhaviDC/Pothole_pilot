@@ -1,92 +1,120 @@
 /*
- * Pothole Pilot - Map JavaScript
+ * Pothole Pilot - Map JavaScript (Leaflet version)
  */
 
-// Map initialization and marker management
 const PotholeMap = {
     map: null,
-    markers: [],
+    markers: L.layerGroup(),
     
+    // Colors for different severity levels
+    colors: {
+        'High': '#dc3545',   // Red
+        'Medium': '#ffc107', // Yellow/Orange
+        'Low': '#28a745'     // Green
+    },
+
     init: function() {
-        const defaultCenter = { lat: 40.7128, lng: -74.0060 };
-        this.map = new google.maps.Map(document.getElementById('map'), {
-            zoom: 12,
-            center: defaultCenter,
-            mapTypeControl: true,
-            fullscreenControl: true,
-        });
+        // Initialize the map centered on New York (from the model ward logic)
+        this.map = L.map('map').setView([40.7128, -74.0060], 13);
+
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(this.map);
+
+        this.markers.addTo(this.map);
+        this.addLegend();
         this.loadPotholes();
     },
-    
+
     loadPotholes: function() {
+        console.log('Loading potholes...');
         fetch('/api/potholes/')
             .then(response => response.json())
             .then(potholes => {
+                console.log(`Found ${potholes.length} potholes`);
                 potholes.forEach(pothole => this.addMarker(pothole));
-                if(potholes.length > 0) this.fitBounds(potholes);
+                
+                if (potholes.length > 0) {
+                    this.fitBounds(potholes);
+                }
             })
-            .catch(error => console.error('Error loading potholes:', error));
-    },
-    
-    addMarker: function(pothole) {
-        const colors = {
-            'High': '#dc3545',
-            'Medium': '#ffc107',
-            'Low': '#28a745'
-        };
-        
-        const marker = new google.maps.Marker({
-            position: { lat: parseFloat(pothole.latitude), lng: parseFloat(pothole.longitude) },
-            map: this.map,
-            title: pothole.description,
-            icon: {
-                path: google.maps.SymbolPath.CIRCLE,
-                fillColor: colors[pothole.severity] || '#6c757d',
-                fillOpacity: 0.8,
-                strokeWeight: 1,
-                strokeColor: '#fff',
-                scale: 10
-            }
-        });
-        
-        const infoWindow = new google.maps.InfoWindow({
-            content: this.getInfoWindowContent(pothole, colors[pothole.severity])
-        });
-        
-        marker.addListener('click', () => {
-            this.markers.forEach(m => {
-                if(m.infoWindow) m.infoWindow.close();
+            .catch(error => {
+                console.error('Error loading potholes:', error);
             });
-            infoWindow.open(this.map, marker);
-        });
-        
-        marker.infoWindow = infoWindow;
-        this.markers.push(marker);
     },
-    
+
+    addMarker: function(pothole) {
+        const color = this.colors[pothole.severity] || '#6c757d';
+        
+        // Use circle markers for a clean look
+        const marker = L.circleMarker([pothole.latitude, pothole.longitude], {
+            radius: 8,
+            fillColor: color,
+            color: '#fff',
+            weight: 2,
+            opacity: 1,
+            fillOpacity: 0.8
+        });
+
+        const popupContent = this.getInfoWindowContent(pothole, color);
+        marker.bindPopup(popupContent);
+        
+        this.markers.addLayer(marker);
+    },
+
     getInfoWindowContent: function(pothole, color) {
+        // Handle image path
+        const imageUrl = pothole.image ? 
+            (pothole.image.startsWith('http') ? pothole.image : `/media/${pothole.image}`) : 
+            null;
+
         return `
-            <div style="width: 250px; font-family: Arial, sans-serif;">
-                <h6 style="margin: 0 0 10px 0; color: #333;">${pothole.description}</h6>
-                ${pothole.image ? `<img src="${pothole.image}" style="width: 100%; height: auto; border-radius: 4px; margin-bottom: 10px;">` : ''}
-                <p style="margin: 5px 0;"><small><strong>Severity:</strong> <span style="color: ${color}; font-weight: bold;">${pothole.severity}</span></small></p>
-                <p style="margin: 5px 0;"><small><strong>Status:</strong> ${pothole.status}</small></p>
-                <p style="margin: 10px 0;"><small><strong>Location:</strong><br>Lat: ${pothole.latitude.toFixed(6)}<br>Lon: ${pothole.longitude.toFixed(6)}</small></p>
-                <a href="/pothole/${pothole.id}/" style="display: inline-block; padding: 5px 10px; background-color: #0d6efd; color: white; text-decoration: none; border-radius: 4px; font-size: 12px;">View Details</a>
+            <div style="width: 200px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+                <h6 style="margin: 0 0 8px 0; font-weight: bold;">${pothole.severity} Severity Pothole</h6>
+                ${imageUrl ? `<img src="${imageUrl}" style="width: 100%; height: auto; border-radius: 4px; margin-bottom: 8px;">` : ''}
+                <p style="margin: 0 0 5px 0; font-size: 0.9rem;">${pothole.description}</p>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px;">
+                    <span style="font-size: 0.8rem; color: #666;">Status: ${pothole.status}</span>
+                    <a href="/pothole/${pothole.id}/" style="font-size: 0.8rem; font-weight: bold; text-decoration: none; color: #0d6efd;">Details →</a>
+                </div>
             </div>
         `;
     },
-    
+
     fitBounds: function(potholes) {
-        const bounds = new google.maps.LatLngBounds();
-        potholes.forEach(pothole => {
-            bounds.extend(new google.maps.LatLng(pothole.latitude, pothole.longitude));
-        });
-        this.map.fitBounds(bounds);
+        const bounds = L.latLngBounds(potholes.map(p => [p.latitude, p.longitude]));
+        this.map.fitBounds(bounds, { padding: [50, 50] });
+    },
+
+    addLegend: function() {
+        const legend = L.control({ position: 'bottomright' });
+
+        legend.onAdd = function(map) {
+            const div = L.DomUtil.create('div', 'legend');
+            const grades = ['High', 'Medium', 'Low'];
+            const colors = {
+                'High': '#dc3545',
+                'Medium': '#ffc107',
+                'Low': '#28a745'
+            };
+
+            div.innerHTML = '<strong>Severity</strong><br>';
+            for (let i = 0; i < grades.length; i++) {
+                div.innerHTML +=
+                    '<i style="background:' + colors[grades[i]] + '"></i> ' +
+                    grades[i] + '<br>';
+            }
+            return div;
+        };
+
+        legend.addTo(this.map);
     }
 };
 
 // Initialize map when page loads
-if(document.getElementById('map')) {
-    window.addEventListener('load', () => PotholeMap.init());
-}
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('map')) {
+        PotholeMap.init();
+    }
+});

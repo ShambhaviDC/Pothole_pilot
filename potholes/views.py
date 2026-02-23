@@ -1,4 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.conf import settings
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
@@ -27,6 +28,8 @@ def home(request):
 def register(request):
     """User registration view."""
     if request.user.is_authenticated:
+        if request.user.is_staff:
+            return redirect(reverse('admin_dashboard') + '?status=Pending&severity=')
         return redirect('user_dashboard')
     
     if request.method == 'POST':
@@ -49,6 +52,8 @@ def register(request):
 def user_login(request):
     """User login view."""
     if request.user.is_authenticated:
+        if request.user.is_staff:
+            return redirect(reverse('admin_dashboard') + '?status=Pending&severity=')
         return redirect('user_dashboard')
     
     if request.method == 'POST':
@@ -61,6 +66,8 @@ def user_login(request):
             if user is not None:
                 login(request, user)
                 messages.success(request, f'Welcome back, {user.username}!')
+                if user.is_staff:
+                    return redirect(reverse('admin_dashboard') + '?status=Pending&severity=')
                 return redirect('user_dashboard')
             else:
                 messages.error(request, 'Invalid username or password.')
