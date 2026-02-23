@@ -1,0 +1,127 @@
+{% extends "potholes/base.html" %}
+
+{% block title %}Dashboard - Pothole Pilot{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <h1 class="mb-4">My Dashboard</h1>
+    
+    <!-- Stats Cards -->
+    <div class="row mb-5">
+        <div class="col-md-3 mb-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Truth Score</h6>
+                    <h2 class="display-6 text-primary">{{ profile.truth_score }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Total Reports</h6>
+                    <h2 class="display-6 text-success">{{ profile.total_reports }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Unread Notifications</h6>
+                    <h2 class="display-6 text-warning">{{ unread_notifications }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Total Votes</h6>
+                    <h2 class="display-6 text-info">{{ user.votes.count }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-5">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Quick Actions</h5>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <a href="{% url 'report_pothole' %}" class="btn btn-primary">
+                            <i class="bi bi-plus-circle"></i> Report Pothole
+                        </a>
+                        <a href="{% url 'community_feed' %}" class="btn btn-outline-primary">
+                            <i class="bi bi-eye"></i> View Feed
+                        </a>
+                        <a href="{% url 'map_view' %}" class="btn btn-outline-primary">
+                            <i class="bi bi-map"></i> View Map
+                        </a>
+                        <a href="{% url 'notifications' %}" class="btn btn-outline-primary">
+                            <i class="bi bi-bell"></i> Notifications
+                        </a>
+                        <a href="{% url 'user_profile' %}" class="btn btn-outline-primary">
+                            <i class="bi bi-person"></i> Profile
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- My Reports -->
+    <div class="row">
+        <div class="col-md-12">
+            <h3 class="mb-4">My Pothole Reports</h3>
+            {% if user_potholes %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Date</th>
+                                <th>Description</th>
+                                <th>Severity</th>
+                                <th>Status</th>
+                                <th>Votes</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for pothole in user_potholes %}
+                                <tr>
+                                    <td>
+                                        <small>{{ pothole.created_at|date:"M d, Y" }}</small>
+                                    </td>
+                                    <td>{{ pothole.description|truncatewords:10 }}</td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if pothole.severity == 'High' %}bg-danger
+                                            {% elif pothole.severity == 'Medium' %}bg-warning text-dark
+                                            {% else %}bg-success{% endif %}">
+                                            {{ pothole.severity }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark">{{ pothole.status }}</span>
+                                    </td>
+                                    <td>
+                                        <i class="bi bi-hand-thumbs-up"></i> {{ pothole.vote_count }}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'pothole_detail' pothole.id %}" class="btn btn-sm btn-outline-primary">View</a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="alert alert-info">
+                    <p>You haven't reported any potholes yet. <a href="{% url 'report_pothole' %}">Report your first pothole now!</a></p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

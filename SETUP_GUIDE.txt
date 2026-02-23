@@ -1,0 +1,103 @@
+================================================================================
+POTHOLE PROJECT - SETUP GUIDE FOR NEW USERS
+================================================================================
+
+Complete instructions to set up and run this Django project from scratch.
+
+================================================================================
+PREREQUISITES
+================================================================================
+- Python 3.8 or higher installed on your system
+- Git (if cloning from repository)
+
+================================================================================
+STEP-BY-STEP SETUP
+================================================================================
+
+1. EXTRACT/NAVIGATE TO PROJECT
+   cd e:\pothole
+   (or wherever you extracted the project)
+
+2. CREATE VIRTUAL ENVIRONMENT
+   python -m venv myenv
+   
+   This creates a local Python environment to isolate project dependencies.
+
+3. ACTIVATE VIRTUAL ENVIRONMENT
+   Windows (PowerShell):
+   .\myenv\Scripts\Activate.ps1
+   
+   Windows (Command Prompt):
+   .\myenv\Scripts\activate.bat
+   
+   Linux/Mac:
+   source myenv/bin/activate
+
+4. INSTALL DEPENDENCIES
+   pip install -r requirements.txt
+   
+   This installs:
+   - Django 4.2.5 (web framework)
+   - Pillow 10.0.0 (image processing)
+   - python-decouple 3.8 (environment variables)
+
+5. RUN DATABASE MIGRATIONS
+   python manage.py migrate
+   
+   This sets up the database with all required tables.
+
+6. CREATE SUPERUSER (OPTIONAL - for admin access)
+   python manage.py createsuperuser
+   
+   Follow the prompts to create an admin account.
+
+7. RUN DEVELOPMENT SERVER
+   python manage.py runserver
+   
+   You should see output like:
+   Starting development server at http://127.0.0.1:8000/
+
+8. OPEN IN BROWSER
+   Go to: http://127.0.0.1:8000/
+   
+   Admin panel: http://127.0.0.1:8000/admin/
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+ERROR: "python: command not found"
+   Solution: Python is not installed or not in PATH. Install Python 3.8+
+
+ERROR: "No module named 'django'"
+   Solution: Make sure virtual environment is activated and dependencies installed:
+   .\myenv\Scripts\Activate.ps1
+   pip install -r requirements.txt
+
+ERROR: "Permission denied" when activating venv
+   Solution (PowerShell): Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+
+ERROR: SQLite database locked
+   Solution: Stop the server (Ctrl+C) and restart
+
+================================================================================
+QUICK REFERENCE
+================================================================================
+
+Start project (after first setup):
+   .\myenv\Scripts\Activate.ps1
+   python manage.py runserver
+
+Stop server:
+   Ctrl+C
+
+Deactivate virtual environment:
+   deactivate
+
+Install new packages:
+   pip install package_name
+
+View installed packages:
+   pip list
+
+================================================================================

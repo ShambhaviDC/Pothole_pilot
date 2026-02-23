@@ -1,0 +1,87 @@
+{% extends "potholes/base.html" %}
+
+{% block title %}Report Pothole - Pothole Pilot{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-lg">
+                <div class="card-body p-5">
+                    <h2 class="card-title mb-4">Report a Pothole</h2>
+                    <p class="text-muted mb-4">Help us keep the roads safe by reporting potholes in your area.</p>
+                    
+                    <form method="POST" enctype="multipart/form-data" novalidate>
+                        {% csrf_token %}
+                        
+                        {% for field in form %}
+                            {% if field.name not in 'latitude,longitude' %}
+                                <div class="mb-3">
+                                    {{ field.label_tag }}
+                                    {{ field }}
+                                    {% if field.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ field.errors.0 }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            {% else %}
+                                {{ field }}
+                            {% endif %}
+                        {% endfor %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Location</label>
+                            <p id="location-status" class="text-muted mb-2">Click the button to get your current location</p>
+                            <button type="button" class="btn btn-outline-secondary" id="get-location-btn">
+                                <i class="bi bi-geo-alt"></i> Get Current Location
+                            </button>
+                            <div id="location-info" class="mt-2" style="display: none;">
+                                <p><small>Latitude: <span id="lat-display">-</span></small></p>
+                                <p><small>Longitude: <span id="lon-display">-</span></small></p>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary btn-lg w-100">Submit Report</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('get-location-btn').addEventListener('click', function(e) {
+        e.preventDefault();
+        const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Getting location...';
+        
+        if ('geolocation' in navigator) {
+            navigator.geolocation.getCurrentPosition(function(position) {
+                const lat = position.coords.latitude;
+                const lon = position.coords.longitude;
+                
+                document.getElementById('id_latitude').value = lat;
+                document.getElementById('id_longitude').value = lon;
+                document.getElementById('lat-display').textContent = lat.toFixed(6);
+                document.getElementById('lon-display').textContent = lon.toFixed(6);
+                document.getElementById('location-info').style.display = 'block';
+                document.getElementById('location-status').textContent = 'Location captured successfully!';
+                document.getElementById('location-status').className = 'text-success mb-2';
+                
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-geo-alt"></i> Location Captured';
+                btn.className = 'btn btn-success';
+            }, function(error) {
+                alert('Error getting location: ' + error.message);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-geo-alt"></i> Get Current Location';
+            });
+        } else {
+            alert('Geolocation is not supported by your browser');
+            btn.disabled = false;
+        }
+    });
+</script>
+{% endblock %}

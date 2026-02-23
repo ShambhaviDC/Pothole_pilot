@@ -1,0 +1,61 @@
+{% extends "potholes/base.html" %}
+
+{% block title %}Update Pothole - Pothole Pilot{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-lg">
+                <div class="card-body p-5">
+                    <h2 class="card-title mb-4">Update Pothole Report</h2>
+                    
+                    <!-- Pothole Info -->
+                    <div class="alert alert-light border">
+                        <h6 class="mb-2">Report Details</h6>
+                        <p><strong>Reporter:</strong> {{ pothole.user.username }}</p>
+                        <p><strong>Description:</strong> {{ pothole.description }}</p>
+                        <p class="mb-0"><strong>Severity:</strong> <span class="badge 
+                            {% if pothole.severity == 'High' %}bg-danger
+                            {% elif pothole.severity == 'Medium' %}bg-warning text-dark
+                            {% else %}bg-success{% endif %}">
+                            {{ pothole.severity }}
+                        </span></p>
+                        {% if pothole.image %}
+                            <div class="mt-3">
+                                <small><strong>Original Image:</strong></small><br>
+                                <img src="{{ pothole.image.url }}" style="max-height: 150px; border-radius: 4px;">
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Update Form -->
+                    <form method="POST" enctype="multipart/form-data" novalidate>
+                        {% csrf_token %}
+                        
+                        {% for field in form %}
+                            <div class="mb-3">
+                                {{ field.label_tag }}
+                                {{ field }}
+                                {% if field.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ field.errors.0 }}
+                                    </div>
+                                {% endif %}
+                                {% if field.name == 'completion_image' %}
+                                    <small class="form-text text-muted d-block mt-1">Upload image after fixing the pothole</small>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+
+                        <div class="btn-group w-100" role="group">
+                            <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Update Status</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

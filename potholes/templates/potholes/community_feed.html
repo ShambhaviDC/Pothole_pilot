@@ -1,0 +1,192 @@
+{% extends 'potholes/base.html' %}
+{% load static %}
+
+{% block title %}Community Feed - Pothole Pilot{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1 class="display-5 mb-4">Community Feed</h1>
+
+            <!-- Filters and Search -->
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <form method="GET" class="d-flex gap-2">
+                        <input type="text" name="search" class="form-control" placeholder="Search..."
+                            value="{{ search_query }}">
+                        <button type="submit" class="btn btn-primary">Search</button>
+                    </form>
+                </div>
+                <div class="col-md-3">
+                    <form method="GET">
+                        <select name="severity" class="form-select" onchange="this.form.submit()">
+                            <option value="">All Severities</option>
+                            <option value="Low" {% if severity_filter == 'Low' %}selected{% endif %}>Low</option>
+                            <option value="Medium" {% if severity_filter == 'Medium' %}selected{% endif %}>Medium</option>
+                            <option value="High" {% if severity_filter == 'High' %}selected{% endif %}>High</option>
+                        </select>
+                    </form>
+                </div>
+                <div class="col-md-3">
+                    <form method="GET">
+                        <select name="order" class="form-select" onchange="this.form.submit()">
+                            <option value="recent" {% if order_by == 'recent' %}selected{% endif %}>Most Recent</option>
+                            <option value="votes" {% if order_by == 'votes' %}selected{% endif %}>Most Voted</option>
+                        </select>
+                    </form>
+                </div>
+                {% if severity_filter or search_query %}
+                <div class="col-md-2">
+                    <a href="{% url 'community_feed' %}" class="btn btn-outline-secondary w-100">Clear Filters</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Potholes Feed -->
+    {% if potholes %}
+    <div class="row">
+        {% for pothole in potholes %}
+        <div class="col-md-6 mb-4">
+            <div class="card h-100 shadow-sm" data-pothole-id="{{ pothole.id }}">
+                {% if pothole.image %}
+                <img src="{{ pothole.image.url }}" class="card-img-top" alt="Pothole Image"
+                    style="height: 250px; object-fit: cover;">
+                {% else %}
+                <div class="card-img-top bg-light d-flex align-items-center justify-content-center"
+                    style="height: 250px;">
+                    <i class="bi bi-image text-muted" style="font-size: 3rem;"></i>
+                </div>
+                {% endif %}
+
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <h5 class="card-title mb-1">{{ pothole.user.username }}</h5>
+                            <small class="text-muted">Truth Score: <span class="badge bg-info">{{
+                                    pothole.author_truth_score }}</span></small>
+                        </div>
+                        <span class="badge 
+                                    {% if pothole.severity == 'High' %}bg-danger
+                                    {% elif pothole.severity == 'Medium' %}bg-warning text-dark
+                                    {% else %}bg-success{% endif %}">
+                            {{ pothole.severity }}
+                        </span>
+                    </div>
+
+                    <p class="card-text text-secondary mb-3">{{ pothole.description }}</p>
+
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <small class="text-muted">
+                            <i class="bi bi-geo-alt"></i> Ward {{ pothole.ward_number }}
+                        </small>
+                        <small class="text-muted">
+                            <i class="bi bi-clock"></i> {{ pothole.created_at|timesince }} ago
+                        </small>
+                        <span class="badge bg-light text-dark">{{ pothole.status }}</span>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-muted vote-count-text">
+                                <i class="bi bi-hand-thumbs-up"></i> {{ pothole.vote_count }} votes
+                            </small>
+                        </div>
+                        <div class="gap-2 d-flex">
+                            {% if user.is_authenticated %}
+                            <button
+                                class="btn btn-sm {% if pothole.user_has_voted %}btn-primary{% else %}btn-outline-primary{% endif %} upvote-btn"
+                                data-pothole-id="{{ pothole.id }}"
+                                data-voted="{% if pothole.user_has_voted %}true{% else %}false{% endif %}">
+                                <i class="bi bi-hand-thumbs-up"></i> Vote
+                            </button>
+                            {% endif %}
+                            <a href="{% url 'pothole_detail' pothole.id %}"
+                                class="btn btn-sm btn-outline-secondary">View</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+        <i class="bi bi-info-circle text-muted mb-3" style="font-size: 4rem;"></i>
+        <h3>No potholes reported yet.</h3>
+        <p class="text-muted">Be the first to report one in your area!</p>
+        <a href="{% url 'report_pothole' %}" class="btn btn-primary mt-3">Report Pothole</a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    document.querySelectorAll('.upvote-btn').forEach(button => {
+        button.addEventListener('click', function () {
+            const potholeId = this.dataset.potholeId;
+            const csrfToken = '{{ csrf_token }}';
+
+            fetch(`/pothole/${potholeId}/upvote/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({})
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const card = this.closest('.card');
+                        const voteText = card.querySelector('.vote-count-text');
+                        if (voteText) {
+                            voteText.innerHTML = `<i class="bi bi-hand-thumbs-up"></i> ${data.vote_count} votes`;
+                        }
+                        this.classList.toggle('btn-outline-primary', !data.voted);
+                        this.classList.toggle('btn-primary', data.voted);
+                        this.dataset.voted = data.voted;
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        });
+    });
+
+    // POLLING MECHANISM for real-time vote updates
+    function pollVoteCounts() {
+        const potholeCards = document.querySelectorAll('.card[data-pothole-id]');
+        const ids = Array.from(potholeCards).map(card => card.dataset.potholeId);
+
+        if (ids.length === 0) return;
+
+        const params = new URLSearchParams();
+        ids.forEach(id => params.append('ids[]', id));
+
+        fetch(`/api/stats/?${params.toString()}`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.stats) {
+                    Object.keys(data.stats).forEach(id => {
+                        const card = document.querySelector(`.card[data-pothole-id="${id}"]`);
+                        if (card) {
+                            const voteText = card.querySelector('.vote-count-text');
+                            if (voteText) {
+                                voteText.innerHTML = `<i class="bi bi-hand-thumbs-up"></i> ${data.stats[id].vote_count} votes`;
+                            }
+                        }
+                    });
+                }
+            })
+            .catch(error => console.error('Polling Error:', error));
+    }
+
+    // Poll every 5 seconds
+    setInterval(pollVoteCounts, 5000);
+</script>
+{% endblock %}
