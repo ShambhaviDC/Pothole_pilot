@@ -2,15 +2,66 @@
 
 {% block title %}Report Pothole - Pothole Pilot{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* ── Tab buttons ─────────────────────────────────────── */
+    .image-tab-btn {
+        flex: 1;
+        padding: 0.65rem 1rem;
+        border: 2px solid #dee2e6;
+        background: #f8f9fa;
+        color: #555;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border-radius: 0;
+    }
+    .image-tab-btn:first-child { border-radius: 8px 0 0 8px; border-right: none; }
+    .image-tab-btn:last-child  { border-radius: 0 8px 8px 0; }
+    .image-tab-btn.active { background: #0d6efd; color: #fff; border-color: #0d6efd; }
+
+    /* ── Camera elements ─────────────────────────────────── */
+    #camera-panel  { display: none; }
+    #video-stream  { width:100%; border-radius:8px; background:#000; max-height:340px; object-fit:cover; }
+    #canvas-capture { display: none; }
+    #photo-preview { display:none; width:100%; border-radius:8px; max-height:340px; object-fit:cover; border:2px solid #0d6efd; }
+    .camera-controls { gap: 0.5rem; }
+
+    /* ── AI result panel ─────────────────────────────────── */
+    .ai-guess-bar  { height:8px; border-radius:4px; background:#e9ecef; overflow:hidden; }
+    .ai-guess-fill { height:100%; border-radius:4px; transition:width 0.6s ease; }
+
+    /* ── Model ready pill ──────────────────────────────────*/
+    #model-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.75rem;
+        padding: 3px 10px;
+        border-radius: 20px;
+        background: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffc107;
+        margin-bottom: 0.75rem;
+    }
+    #model-pill.ready { background:#d1e7dd; color:#0f5132; border-color:#198754; }
+</style>
+{% endblock %}
+
 {% block content %}
+<!-- TF.js + MobileNet — loaded async so page renders immediately -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.18.0/dist/tf.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js" defer></script>
+
 <div class="container py-5">
     <div class="row justify-content-center">
         <div class="col-md-8">
             <div class="card shadow-lg">
                 <div class="card-body p-5">
-                    <h2 class="card-title mb-4">Report a Pothole</h2>
+                    <h2 class="card-title mb-2">Report a Pothole</h2>
                     <p class="text-muted mb-4">Help us keep the roads safe by reporting potholes in your area.</p>
 
+<<<<<<< HEAD
                     <form id="report-form" method="POST" enctype="multipart/form-data" novalidate>
                         {% csrf_token %}
 
@@ -54,6 +105,100 @@
 
                             <div class="input-group">
                                 <span class="input-group-text"><i class="bi bi-image"></i></span>
+=======
+                    <form method="POST" enctype="multipart/form-data" novalidate id="report-form">
+                        {% csrf_token %}
+
+                        {% for field in form %}
+                            {% if field.name == 'image' %}
+                            <!-- ===== IMAGE / CAMERA SECTION ===== -->
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Pothole Photo</label>
+
+                                <!-- Tiny AI-status pill (non-blocking) -->
+                                <div><span id="model-pill">
+                                    <span class="spinner-border" style="width:.6rem;height:.6rem;border-width:2px;"></span>
+                                    AI validator loading…
+                                </span></div>
+
+                                <!-- Tabs -->
+                                <div class="d-flex mb-3">
+                                    <button type="button" class="image-tab-btn active" id="tab-upload">
+                                        <i class="bi bi-upload me-1"></i> Upload Photo
+                                    </button>
+                                    <button type="button" class="image-tab-btn" id="tab-camera">
+                                        <i class="bi bi-camera-fill me-1"></i> Use Camera
+                                    </button>
+                                </div>
+
+                                <!-- Upload panel -->
+                                <div id="upload-panel">
+                                    {{ field }}
+                                    {% if field.errors %}
+                                        <div class="invalid-feedback d-block">{{ field.errors.0 }}</div>
+                                    {% endif %}
+                                    <div id="upload-preview-wrapper" class="mt-2" style="display:none;">
+                                        <img id="upload-preview" src="#" alt="Preview"
+                                             style="max-height:260px;width:100%;object-fit:cover;border-radius:8px;border:2px solid #0d6efd;">
+                                    </div>
+                                </div>
+
+                                <!-- Camera panel -->
+                                <div id="camera-panel">
+                                    <video id="video-stream" autoplay playsinline muted></video>
+                                    <canvas id="canvas-capture"></canvas>
+                                    <img id="photo-preview" alt="Captured photo">
+                                    <div class="d-flex camera-controls mt-3 flex-wrap">
+                                        <button type="button" class="btn btn-primary flex-grow-1" id="snap-btn">
+                                            <i class="bi bi-camera"></i> Snap Photo
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary flex-grow-1" id="retake-btn" style="display:none;">
+                                            <i class="bi bi-arrow-counterclockwise"></i> Retake
+                                        </button>
+                                    </div>
+                                    <p id="camera-status" class="text-muted small mt-2"></p>
+                                </div>
+
+                                <!-- ── AI Validation Result (hidden until image provided) ── -->
+                                <div id="ai-result-wrapper" style="display:none;" class="mt-3">
+
+                                    <!-- Loading spinner (only shown during actual analysis) -->
+                                    <div id="ai-loading" style="display:none;" class="alert alert-secondary d-flex align-items-center gap-2 py-2">
+                                        <div class="spinner-border spinner-border-sm flex-shrink-0"></div>
+                                        <span>Analysing image with AI — this may take a few seconds…</span>
+                                    </div>
+
+                                    <!-- Result banner -->
+                                    <div id="ai-verdict-banner" style="display:none;" class="alert mb-2 d-flex align-items-center gap-2">
+                                        <span id="ai-verdict-icon" style="font-size:1.3rem;"></span>
+                                        <div>
+                                            <strong id="ai-verdict-title"></strong>
+                                            <div id="ai-verdict-msg" class="small"></div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Prediction bars -->
+                                    <div id="ai-predictions" style="display:none;">
+                                        <p class="small text-muted fw-semibold mb-1">Top AI detections:</p>
+                                        <div id="ai-pred-bars"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- ===== END IMAGE / CAMERA SECTION ===== -->
+
+                            {% elif field.name not in 'latitude,longitude' %}
+                            <div class="mb-3">
+                                {{ field.label_tag }}
+                                {% if field.name == 'description' %}
+                                    <span class="text-muted small ms-1">(Optional)</span>
+                                {% endif %}
+                                {{ field }}
+                                {% if field.errors %}
+                                    <div class="invalid-feedback d-block">{{ field.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            {% else %}
+>>>>>>> 55676a2 (t)
                                 {{ field }}
                             </div>
                             <div class="form-text">Capture a live photo or upload an existing one.</div>
@@ -63,9 +208,15 @@
                                 {{ field.errors.0 }}
                             </div>
                             {% endif %}
+<<<<<<< HEAD
                         </div>
                         <canvas id="canvas" class="d-none"></canvas>
                         {% elif field.name not in 'latitude,longitude' %}
+=======
+                        {% endfor %}
+
+                        <!-- Location -->
+>>>>>>> 55676a2 (t)
                         <div class="mb-3">
                             {{ field.label_tag }}
                             {{ field }}
@@ -87,6 +238,7 @@
                             <button type="button" class="btn btn-outline-secondary w-100" id="get-location-btn">
                                 <i class="bi bi-geo-alt"></i> Get Current Location
                             </button>
+<<<<<<< HEAD
                             <div id="location-info" class="mt-2 text-center" style="display: none;">
                                 <p class="mb-0"><small>Lat: <span id="lat-display">-</span> | Lon: <span
                                             id="lon-display">-</span></small></p>
@@ -96,6 +248,20 @@
                         <button type="submit" id="submit-btn" class="btn btn-primary btn-lg w-100 mb-3 shadow">
                             <i class="bi bi-cloud-upload me-2"></i> Submit Report
                         </button>
+=======
+                            <div id="location-info" class="mt-2" style="display:none;">
+                                <p><small>Latitude: <span id="lat-display">-</span></small></p>
+                                <p><small>Longitude: <span id="lon-display">-</span></small></p>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-lg w-100" id="submit-btn" disabled>
+                            <i class="bi bi-send-fill me-1"></i> Submit Report
+                        </button>
+                        <p class="small text-center mt-2" id="submit-hint">
+                            Add a photo and wait for AI verification to submit.
+                        </p>
+>>>>>>> 55676a2 (t)
                     </form>
                 </div>
             </div>
@@ -104,6 +270,7 @@
 </div>
 
 <script>
+<<<<<<< HEAD
     // Location Logic
     document.getElementById('get-location-btn').addEventListener('click', function (e) {
         e.preventDefault();
@@ -198,5 +365,494 @@
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-grow spinner-grow-sm me-2"></span>Analyzing with AI...';
     });
+=======
+// ════════════════════════════════════════════════════════════════
+// AI Detection Rules — 5-step hybrid (MobileNet + Canvas texture)
+// ════════════════════════════════════════════════════════════════
+
+// Step 1 — Deny list: reject obviously non-road images
+// Whole-word matched (so 'man' does NOT match 'manhole cover')
+const DENY_LIST = [
+    'flower','blossom','petal','lotus','rose','bloom','bouquet',
+    'daisy','sunflower','dandelion','orchid','tulip','carnation',
+    'cat','dog','hamster','goldfish','horse','cow','elephant',
+    'tiger','lion','monkey','butterfly','bee','spider','snake',
+    'parrot','penguin','zebra','giraffe','bird','rabbit','squirrel',
+    'person','human','face','people','crowd','portrait','selfie',
+    'girl','boy','baby','child','toddler',
+    'indoor','bedroom','kitchen','office','corridor','library',
+    'bathroom','dining room','classroom',
+    'food','pizza','burger','sushi','cake','noodle','salad',
+    'sandwich','pastry','waffle','doughnut','taco',
+    'laptop','keyboard','smartphone','television','toy','teddy',
+    'pillow','curtain','floor','tile','tile floor','carpet','rug',
+    'wall','ceiling','window','furniture','shelf','door',
+    'cliff','breakwater',
+    'alp','scree','shale','quarry','mountain','rocky','hill',
+    'car','truck','bus','van','motorcycle','bicycle','taxi','limo',
+    'jeep','minivan','trailer','lorry','semi','cab','wagon',
+];
+
+// Step 2 — Strong positive: MobileNet labels that strongly
+// indicate rough/damaged road surface → accept immediately
+const DAMAGE_LABELS = [
+    'pothole','crater','manhole','puddle',
+    'gravel','cobblestone','pavement','asphalt',
+    'sidewalk','roadway','tarmac','rubble','fissure','fault',
+    'geological','stone wall','gully','ravine',
+];
+
+const MIN_CONFIDENCE = 0.03;
+
+// ════════════════════════════════════════════════════════════════
+// Canvas Texture Analysis
+// Measures brightness variance + dark-pixel ratio in the
+// BOTTOM 60% of the image (where road damage appears).
+// Pothole → high variance + dark spots
+// Plain smooth road → low variance, no dark spots
+// ════════════════════════════════════════════════════════════════
+function analyseTexture(imgEl) {
+    const S   = 160;
+    const cv  = document.createElement('canvas');
+    cv.width  = S; cv.height = S;
+    const ctx = cv.getContext('2d');
+    ctx.drawImage(imgEl, 0, 0, S, S);
+
+    const imageData = ctx.getImageData(0, 0, S, S).data;
+    const startY    = Math.floor(S * 0.40); // bottom 60%
+    const brightArr = [];
+    let grayPx = 0, totalInZone = 0, roughPx = 0;
+
+    for (let y = startY; y < S; y++) {
+        for (let x = Math.floor(S*0.08); x < Math.floor(S*0.92); x++) {
+            const i = (y * S + x) * 4;
+            const r = imageData[i], g = imageData[i+1], b = imageData[i+2];
+            const lum = 0.299*r + 0.587*g + 0.114*b;
+            
+            // FEATURE: Skip pure white (lane lines) and deep black (soft shadows)
+            if (lum > 220 || lum < 35) continue;
+
+            brightArr.push(lum);
+            totalInZone++;
+            
+            // Texture Roughness (local contrast check)
+            const nextLum = 0.299*imageData[i+4] + 0.587*imageData[i+5] + 0.114*imageData[i+6];
+            if (Math.abs(lum - nextLum) > 12) roughPx++;
+
+            // Gray pixel = road/asphalt colour
+            const maxCh = Math.max(r,g,b), minCh = Math.min(r,g,b);
+            if ((maxCh - minCh) < 45 && lum > 20 && lum < 215) grayPx++;
+        }
+    }
+
+    const n      = brightArr.length;
+    if (n < 50) return { stdDev: 0, darkPct: 0, grayRatio: 0, roughness: 0 };
+
+    const mean   = brightArr.reduce((s,v)=>s+v,0) / n;
+    const stdDev = Math.sqrt(brightArr.reduce((s,v)=>s+(v-mean)**2,0) / n);
+    const darkPct = brightArr.filter(v => v < 65).length / n; // holes/cracks
+    const grayRatio = grayPx / (totalInZone || 1);
+    const roughness = roughPx / (totalInZone || 1);
+
+    console.log(`[Texture] stdDev=${stdDev.toFixed(1)} darkPct=${(darkPct*100).toFixed(1)}% roughness=${(roughness*100).toFixed(1)}%`);
+    return { stdDev, darkPct, grayRatio, roughness };
+}
+
+// ════════════════════════════════════════════════════════════════
+// Model — lazy-load on first image trigger for speed
+// ════════════════════════════════════════════════════════════════
+let mobileNetModel = null;
+let modelLoading   = false;
+let modelReady     = false;
+let canSubmit      = false;
+
+function updatePill(ready) {
+    const pill = document.getElementById('model-pill');
+    if (ready) {
+        pill.innerHTML = '<i class="bi bi-check-circle-fill"></i> AI validator ready';
+        pill.classList.add('ready');
+        modelReady = true;
+    } else {
+        pill.innerHTML = '<span class="spinner-border" style="width:.6rem;height:.6rem;border-width:2px;"></span> AI validator loading…';
+    }
+}
+
+async function ensureModelLoaded() {
+    if (modelReady) return true;
+    if (modelLoading) {
+        // Wait until it finishes
+        return new Promise(resolve => {
+            const interval = setInterval(() => {
+                if (modelReady) { clearInterval(interval); resolve(true); }
+            }, 200);
+        });
+    }
+    modelLoading = true;
+    try {
+        mobileNetModel = await mobilenet.load({ version: 2, alpha: 1.0 });
+        updatePill(true);
+        return true;
+    } catch (e) {
+        console.error('[AI] Model load failed:', e);
+        updatePill(true); // Don't block user if model fails
+        mobileNetModel = null;
+        modelReady = true;
+        return false;
+    }
+}
+
+// Start loading model after page is fully painted (non-blocking)
+window.addEventListener('load', () => {
+    // Small delay so page renders first, then silently fetch model
+    setTimeout(() => {
+        if (typeof mobilenet !== 'undefined') {
+            ensureModelLoaded();
+        } else {
+            // Scripts still loading — wait for them
+            const check = setInterval(() => {
+                if (typeof mobilenet !== 'undefined') {
+                    clearInterval(check);
+                    ensureModelLoaded();
+                }
+            }, 300);
+        }
+    }, 800);
+});
+
+// ════════════════════════════════════════════════════════════════
+// AI Analysis
+// ════════════════════════════════════════════════════════════════
+async function analyseImage(imgElement) {
+    showAIWrapper(true);
+    showAILoading(true);
+    hideVerdict();
+
+    const loaded = await ensureModelLoaded();
+
+    if (!loaded || !mobileNetModel) {
+        showAILoading(false);
+        showVerdict(true, 'Validation skipped', 'AI model unavailable. You may proceed.', []);
+        enableSubmit();
+        return;
+    }
+
+    let predictions;
+    try {
+        predictions = await mobileNetModel.classify(imgElement, 5);
+    } catch (e) {
+        console.error('[AI] classify error:', e);
+        showAILoading(false);
+        showVerdict(true, 'Validation skipped', 'Could not analyse this image. You may proceed.', []);
+        enableSubmit();
+        return;
+    }
+
+    showAILoading(false);
+
+    const top5   = predictions.slice(0, 5);
+    const topConf = top5[0]?.probability || 0;
+
+    console.log('[AI] Predictions:', top5.map(p => p.className + ' ' + (p.probability*100).toFixed(1)+'%'));
+
+    // ── Step 1: Confidence floor ──────────────────────────────────
+    if (topConf < MIN_CONFIDENCE) {
+        showVerdict(false, 'Image Rejected',
+            `Image is too unclear to analyse (confidence: ${pct(topConf)}). Please use a real outdoor pothole photo.`,
+            top5.slice(0, 3));
+        disableSubmit(); return;
+    }
+
+    // ── Step 2: Reject clearly non-road content ───────────────────
+    let blockedLabel = null;
+    for (const pred of top5.slice(0, 2)) {
+        const label = pred.className.toLowerCase();
+        const hit   = DENY_LIST.find(kw =>
+            new RegExp('\\b' + kw.replace(/\s+/g, '\\s+') + '\\b').test(label)
+        );
+        if (hit) { blockedLabel = pred.className; break; }
+    }
+
+    if (blockedLabel) {
+        showVerdict(false, 'Image Rejected',
+            `This looks like a "${blockedLabel}" image, not a road or pothole.`,
+            top5.slice(0, 3));
+        disableSubmit(); return;
+    }
+
+    // ── Step 3: Immediate Accept (High Signal Damage) ─────────────
+    const HIGH_DAMAGE = ['pothole', 'crater', 'fault', 'fissure', 'rubble'];
+    for (const pred of top5.slice(0, 3)) {
+        if (HIGH_DAMAGE.some(kw => pred.className.toLowerCase().includes(kw)) && pred.probability > 0.18) {
+            showVerdict(true, 'Road Damage Detected ✓',
+                'AI has identified a high-probability damage pattern. You may submit.',
+                top5.slice(0, 3));
+            enableSubmit(); return;
+        }
+    }
+
+    // ── Step 4: Texture Analysis (Accept if damaged, Reject if plain) ─
+    const { stdDev, darkPct, grayRatio, roughness } = analyseTexture(imgElement);
+
+    // THRESHOLDS for a "plain road": stdDev < 15, darkPct < 1%, roughness < 5%
+    // We target localized damage (roughness between 6% and 35%)
+    // High roughness (>40%) usually means it's a gravel road or shadows everywhere.
+    const HAS_DAMAGE = (stdDev > 28.0 && roughness > 0.08 && roughness < 0.38) || (darkPct > 0.05 && darkPct < 0.30);
+    const IS_ROAD    = (grayRatio > 0.20);
+
+    if (HAS_DAMAGE && IS_ROAD) {
+        showVerdict(true, 'Image Accepted ✓',
+            'Texture analysis confirms surface irregularities/damage. You may submit.',
+            top5.slice(0, 3));
+        enableSubmit();
+    } else if (!IS_ROAD && grayRatio < 0.10) {
+        showVerdict(false, 'Image Rejected',
+            'Image does not appear to be a road surface. Please upload a clear photo of the pothole.',
+            top5.slice(0, 3));
+        disableSubmit();
+    } else if (roughness > 0.40) {
+        showVerdict(false, 'Image Rejection (Clutter)',
+            'Image has too much environmental interference (likely shadows or foliage). Please get a clearer shot.',
+            top5.slice(0, 3));
+        disableSubmit();
+    } else {
+        showVerdict(false, 'Plain Road Rejected',
+            'This looks like a clean road with no major damage. Only report actual potholes.',
+            top5.slice(0, 3));
+        disableSubmit();
+    }
+}
+
+// ════════════════════════════════════════════════════════════════
+// UI helpers
+// ════════════════════════════════════════════════════════════════
+function pct(p)  { return (p * 100).toFixed(1) + '%'; }
+
+function showAIWrapper(on) {
+    document.getElementById('ai-result-wrapper').style.display = on ? 'block' : 'none';
+}
+function showAILoading(on) {
+    document.getElementById('ai-loading').style.display = on ? 'flex' : 'none';
+}
+function hideVerdict() {
+    document.getElementById('ai-verdict-banner').style.display = 'none';
+    document.getElementById('ai-predictions').style.display    = 'none';
+}
+function showVerdict(success, title, msg, preds) {
+    const banner = document.getElementById('ai-verdict-banner');
+    banner.className = 'alert mb-2 d-flex align-items-center gap-2 ' +
+                       (success ? 'alert-success' : 'alert-danger');
+    document.getElementById('ai-verdict-icon').textContent  = success ? '✅' : '❌';
+    document.getElementById('ai-verdict-title').textContent = title;
+    document.getElementById('ai-verdict-msg').textContent   = msg;
+    banner.style.display = 'flex';
+
+    if (preds.length) {
+        const colour = success ? '#198754' : '#dc3545';
+        document.getElementById('ai-pred-bars').innerHTML = preds.map(p => `
+            <div class="mb-2">
+                <div class="d-flex justify-content-between small mb-1">
+                    <span>${p.className}</span><span>${pct(p.probability)}</span>
+                </div>
+                <div class="ai-guess-bar">
+                    <div class="ai-guess-fill" style="width:${pct(p.probability)};background:${colour};"></div>
+                </div>
+            </div>`).join('');
+        document.getElementById('ai-predictions').style.display = 'block';
+    }
+}
+
+function enableSubmit() {
+    canSubmit = true;
+    document.getElementById('submit-btn').disabled = false;
+    document.getElementById('submit-hint').style.display = 'none';
+}
+function disableSubmit() {
+    canSubmit = false;
+    const btn  = document.getElementById('submit-btn');
+    const hint = document.getElementById('submit-hint');
+    
+    btn.disabled = true;
+    hint.style.display = 'block';
+    hint.innerHTML = '<i class="bi bi-exclamation-triangle-fill"></i> Not allowed: No pothole detected in the image.';
+    hint.className = 'text-danger fw-bold small text-center mt-2';
+}
+function resetAI() {
+    canSubmit = false;
+    showAIWrapper(false);
+    hideVerdict();
+    showAILoading(false);
+    
+    const btn  = document.getElementById('submit-btn');
+    const hint = document.getElementById('submit-hint');
+    btn.disabled = true;
+    hint.style.display = 'block';
+    hint.innerHTML = 'Add a photo and wait for AI verification to submit.';
+    hint.className = 'text-muted small text-center mt-2';
+}
+
+// ── FINAL FORM GUARD ──
+document.getElementById('report-form').addEventListener('submit', function(e) {
+    if (!canSubmit) {
+        e.preventDefault();
+        alert('Submission Not Allowed: No pothole detected in the image!');
+        return false;
+    }
+});
+
+// ════════════════════════════════════════════════════════════════
+// Tab switching
+// ════════════════════════════════════════════════════════════════
+const tabUpload   = document.getElementById('tab-upload');
+const tabCamera   = document.getElementById('tab-camera');
+const uploadPanel = document.getElementById('upload-panel');
+const cameraPanel = document.getElementById('camera-panel');
+let cameraStream  = null;
+
+tabUpload.addEventListener('click', () => {
+    tabUpload.classList.add('active');
+    tabCamera.classList.remove('active');
+    uploadPanel.style.display = 'block';
+    cameraPanel.style.display = 'none';
+    stopCamera();
+    resetAI();
+});
+
+tabCamera.addEventListener('click', () => {
+    tabCamera.classList.add('active');
+    tabUpload.classList.remove('active');
+    uploadPanel.style.display = 'none';
+    cameraPanel.style.display = 'block';
+    startCamera();
+    resetAI();
+});
+
+// ════════════════════════════════════════════════════════════════
+// Upload — preview + AI check ONLY when file selected
+// ════════════════════════════════════════════════════════════════
+const fileInput            = document.getElementById('id_image');
+const uploadPreviewWrapper = document.getElementById('upload-preview-wrapper');
+const uploadPreview        = document.getElementById('upload-preview');
+
+fileInput.addEventListener('change', function () {
+    if (!this.files || !this.files[0]) return;
+
+    resetAI();
+    const reader = new FileReader();
+    reader.onload = e => {
+        uploadPreview.src = e.target.result;
+        uploadPreviewWrapper.style.display = 'block';
+
+        // Only trigger AI after image renders
+        uploadPreview.onload = () => analyseImage(uploadPreview);
+    };
+    reader.readAsDataURL(this.files[0]);
+});
+
+// ════════════════════════════════════════════════════════════════
+// Camera
+// ════════════════════════════════════════════════════════════════
+const videoEl   = document.getElementById('video-stream');
+const canvas    = document.getElementById('canvas-capture');
+const photoImg  = document.getElementById('photo-preview');
+const snapBtn   = document.getElementById('snap-btn');
+const retakeBtn = document.getElementById('retake-btn');
+const camStatus = document.getElementById('camera-status');
+
+async function startCamera() {
+    camStatus.textContent = 'Starting camera\u2026';
+    camStatus.className   = 'text-muted small mt-2';
+    try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+            audio: false
+        });
+        videoEl.srcObject       = cameraStream;
+        videoEl.style.display   = 'block';
+        photoImg.style.display  = 'none';
+        snapBtn.style.display   = 'inline-flex';
+        retakeBtn.style.display = 'none';
+        camStatus.textContent   = 'Camera ready \u2014 point at the pothole and snap.';
+    } catch (err) {
+        camStatus.textContent = '\u26a0\ufe0f Camera not accessible: ' + err.message;
+        camStatus.className   = 'text-danger small mt-2';
+    }
+}
+
+function stopCamera() {
+    if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
+    videoEl.srcObject = null;
+}
+
+snapBtn.addEventListener('click', () => {
+    const w = videoEl.videoWidth  || 1280;
+    const h = videoEl.videoHeight || 720;
+    canvas.width = w; canvas.height = h;
+    canvas.getContext('2d').drawImage(videoEl, 0, 0, w, h);
+
+    canvas.toBlob(blob => {
+        const file = new File([blob], 'camera_capture.jpg', { type: 'image/jpeg' });
+        const dt   = new DataTransfer();
+        dt.items.add(file);
+        fileInput.files = dt.files;
+
+        photoImg.src            = canvas.toDataURL('image/jpeg');
+        photoImg.style.display  = 'block';
+        videoEl.style.display   = 'none';
+        snapBtn.style.display   = 'none';
+        retakeBtn.style.display = 'inline-flex';
+        camStatus.textContent   = 'Photo captured \u2014 running AI check\u2026';
+        camStatus.className     = 'text-primary small mt-2';
+
+        // Run AI only after snap
+        photoImg.onload = () => analyseImage(photoImg);
+        if (photoImg.complete) analyseImage(photoImg);
+    }, 'image/jpeg', 0.92);
+});
+
+retakeBtn.addEventListener('click', () => {
+    photoImg.style.display   = 'none';
+    videoEl.style.display    = 'block';
+    snapBtn.style.display    = 'inline-flex';
+    retakeBtn.style.display  = 'none';
+    camStatus.textContent    = 'Camera ready \u2014 point at the pothole and snap.';
+    camStatus.className      = 'text-muted small mt-2';
+    fileInput.value          = '';
+    resetAI();
+});
+
+// ════════════════════════════════════════════════════════════════
+// Location
+// ════════════════════════════════════════════════════════════════
+document.getElementById('get-location-btn').addEventListener('click', function (e) {
+    e.preventDefault();
+    const btn = this;
+    btn.disabled  = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Getting location...';
+
+    if ('geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition(pos => {
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
+            document.getElementById('id_latitude').value       = lat;
+            document.getElementById('id_longitude').value      = lon;
+            document.getElementById('lat-display').textContent = lat.toFixed(6);
+            document.getElementById('lon-display').textContent = lon.toFixed(6);
+            document.getElementById('location-info').style.display  = 'block';
+            document.getElementById('location-status').textContent   = 'Location captured successfully!';
+            document.getElementById('location-status').className     = 'text-success mb-2';
+            btn.disabled  = false;
+            btn.innerHTML = '<i class="bi bi-geo-alt"></i> Location Captured';
+            btn.className = 'btn btn-success';
+        }, err => {
+            alert('Error getting location: ' + err.message);
+            btn.disabled  = false;
+            btn.innerHTML = '<i class="bi bi-geo-alt"></i> Get Current Location';
+        });
+    } else {
+        alert('Geolocation is not supported by your browser');
+        btn.disabled = false;
+    }
+});
+>>>>>>> 55676a2 (t)
 </script>
 {% endblock %}

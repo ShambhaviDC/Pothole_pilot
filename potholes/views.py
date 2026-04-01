@@ -239,10 +239,7 @@ def potholes_api(request):
 
 def map_view(request):
     """Map view for displaying potholes."""
-    context = {
-        'google_maps_api_key': settings.GOOGLE_MAPS_API_KEY
-    }
-    return render(request, 'potholes/map.html', context)
+    return render(request, 'potholes/map.html')
 
 
 @login_required

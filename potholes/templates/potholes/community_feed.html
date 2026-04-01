@@ -63,7 +63,14 @@
 
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start mb-2">
+<<<<<<< HEAD
                         <h5 class="card-title mb-1">Issue #{{ pothole.id }}</h5>
+=======
+                        <div>
+                            <h5 class="card-title mb-1"><span class="badge bg-secondary">Report #{{ pothole.id }}</span></h5>
+                            <small class="text-muted">Truth Score: <span class="badge bg-info">{{ pothole.author_truth_score }}</span></small>
+                        </div>
+>>>>>>> 55676a2 (t)
                         <span class="badge 
                                     {% if pothole.severity == 'High' %}bg-danger
                                     {% elif pothole.severity == 'Medium' %}bg-warning text-dark

@@ -79,7 +79,7 @@
                 <thead class="table-dark">
                     <tr>
                         <th>Date</th>
-                        <th>Reporter</th>
+                        <th>Report No.</th>
                         <th>Description</th>
                         <th>Severity</th>
                         <th>Status</th>
@@ -92,7 +92,7 @@
                     {% for pothole in potholes %}
                         <tr>
                             <td><small>{{ pothole.created_at|date:"M d, Y H:i" }}</small></td>
-                            <td>{{ pothole.user.username }}</td>
+                            <td><span class="badge bg-secondary">#{{ pothole.id }}</span></td>
                             <td>{{ pothole.description|truncatewords:15 }}</td>
                             <td>
                                 <span class="badge 

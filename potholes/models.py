@@ -57,7 +57,7 @@ class Pothole(models.Model):
     latitude = models.FloatField()
     longitude = models.FloatField()
     ward_number = models.IntegerField(default=1)
-    description = models.TextField()
+    description = models.TextField(blank=True, null=True)
     severity = models.CharField(max_length=10, choices=SEVERITY_CHOICES, default='Medium')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Pending')
     vote_count = models.IntegerField(default=0)

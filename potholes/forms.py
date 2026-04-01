@@ -61,13 +61,14 @@ class PotholeReportForm(forms.ModelForm):
             'description': forms.Textarea(attrs={
                 'class': 'form-control',
                 'rows': 4,
-                'placeholder': 'Describe the pothole...'
+                'placeholder': 'Describe the pothole... (optional)'
             }),
             'severity': forms.Select(attrs={
                 'class': 'form-control'
             }),
         }
 
+<<<<<<< HEAD
     def clean_image(self):
         image_file = self.cleaned_data.get('image')
         if not image_file:
@@ -98,6 +99,11 @@ class PotholeReportForm(forms.ModelForm):
         except Exception as e:
             # If image processing fails, allow it but log it (for robustness)
             return image_file
+=======
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['description'].required = False
+>>>>>>> 55676a2 (t)
 
 
 class PotholeUpdateForm(forms.ModelForm):

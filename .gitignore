@@ -42,3 +42,4 @@ db.sqlite3
 Thumbs.db
 .env
 .env.local
+myenv/

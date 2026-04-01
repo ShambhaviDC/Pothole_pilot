@@ -4,6 +4,7 @@
 {% block title %}Map View - Pothole Pilot{% endblock %}
 
 {% block extra_css %}
+<<<<<<< HEAD
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 <style>
     .legend {
@@ -21,11 +22,54 @@
         margin-right: 8px;
         opacity: 0.8;
         border-radius: 50%;
+=======
+<!-- Leaflet.js CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+<style>
+    .map-header {
+        background: #1a1d20;
+        color: white;
+        padding: 30px 0;
+        border-bottom: 5px solid #0d6efd;
+    }
+    #map-wrapper {
+        position: relative;
+        width: 100%;
+        height: 600px;
+        margin-top: 20px;
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+    }
+    #map {
+        width: 100%;
+        height: 100%;
+        background: #f0f0f0;
+    }
+    #map-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1000;
+        background: rgba(255,255,255,0.9);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+    .custom-popup img {
+        width: 100%;
+        border-radius: 4px;
+        margin-top: 5px;
+>>>>>>> 55676a2 (t)
     }
 </style>
 {% endblock %}
 
 {% block content %}
+<<<<<<< HEAD
 <div class="container-fluid py-4">
     <div class="row">
         <div class="col-md-12">
@@ -39,12 +83,117 @@
                     <div id="map" style="width: 100%; height: 600px; border-radius: 0 0 8px 8px;"></div>
                 </div>
             </div>
+=======
+<div class="map-header">
+    <div class="container text-center">
+        <h1 class="fw-bold fs-2"><i class="bi bi-geo-alt-fill me-2"></i>Pothole Pilot Tracker</h1>
+        <div class="d-flex justify-content-center gap-3 mt-3">
+            <span class="badge rounded-pill bg-danger">Critical</span>
+            <span class="badge rounded-pill bg-warning text-dark">Warning</span>
+            <span class="badge rounded-pill bg-success">Low</span>
+>>>>>>> 55676a2 (t)
         </div>
     </div>
 </div>
 {% endblock %}
 
+<<<<<<< HEAD
 {% block extra_js %}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="{% static 'js/map.js' %}"></script>
 {% endblock %}
+=======
+<div class="container">
+    <div id="map-wrapper">
+        <div id="map-overlay">
+            <div class="spinner-border text-primary mb-3" role="status"></div>
+            <p class="fw-bold text-muted">Building Real-Time Map...</p>
+        </div>
+        <div id="map"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Core Leaflet Library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+
+<script>
+/**
+ * BULLETPROOF MAP INITIALIZER
+ * Inlined to avoid any script-dependency issues.
+ */
+document.addEventListener("DOMContentLoaded", function() {
+    console.log("DOM Ready, starting Map Engine...");
+    
+    // Safety check for Leaflet library
+    if (typeof L === 'undefined') {
+        document.getElementById('map-overlay').innerHTML = `
+            <div class="text-danger text-center p-4">
+                <i class="bi bi-exclamation-triangle" style="font-size: 2rem;"></i>
+                <p class="mt-2">Failed to load Map Engine (Leaflet).<br>Please check your internet connection.</p>
+                <button onclick="window.location.reload()" class="btn btn-sm btn-outline-danger mt-2">Retry</button>
+            </div>`;
+        return;
+    }
+
+    const map = L.map('map').setView([40.7128, -74.0060], 12);
+    
+    // High-reliability Tile Layer (CartoDB)
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; CartoDB',
+        maxZoom: 20
+    }).addTo(map);
+
+    // Load Potholes
+    fetch('/api/potholes/')
+        .then(response => response.json())
+        .then(data => {
+            console.log("API Success:", data.length, "markers found.");
+            const markers = [];
+            
+            data.forEach(p => {
+                const color = p.severity === 'High' ? '#dc3545' : (p.severity === 'Medium' ? '#ffc107' : '#198754');
+                const marker = L.circleMarker([p.latitude, p.longitude], {
+                    radius: 8,
+                    fillColor: color,
+                    color: '#fff',
+                    weight: 2,
+                    fillOpacity: 0.9
+                }).addTo(map);
+
+                marker.bindPopup(`
+                    <div class="custom-popup" style="width:200px">
+                        <strong>${p.description || 'Pothole Report'}</strong><br>
+                        ${p.image ? `<img src="${p.image}">` : ''}
+                        <div class="mt-2 text-muted small">Severity: ${p.severity}</div>
+                        <a href="/pothole/${p.id}/" class="btn btn-primary btn-sm w-100 mt-2">Details</a>
+                    </div>
+                `);
+                markers.push([p.latitude, p.longitude]);
+            });
+
+            if (markers.length > 0) {
+                map.fitBounds(L.latLngBounds(markers), { padding: [40, 40] });
+            }
+            
+            // Success! Hide overlay
+            document.getElementById('map-overlay').style.display = 'none';
+        })
+        .catch(err => {
+            console.error("API Error:", err);
+            // Hide overlay even on error so user can see the map base
+            document.getElementById('map-overlay').style.display = 'none';
+        });
+
+    // RE-DRAW FIX: Force map to recognize its size after the browser finishes painting
+    const forceRefresh = setInterval(() => {
+        map.invalidateSize();
+    }, 500);
+    
+    // Stop forcing after a few seconds
+    setTimeout(() => clearInterval(forceRefresh), 5000);
+});
+</script>
+{% endblock %}
+>>>>>>> 55676a2 (t)
