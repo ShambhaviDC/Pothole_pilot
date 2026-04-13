@@ -61,51 +61,6 @@
                     <h2 class="card-title mb-2">Report a Pothole</h2>
                     <p class="text-muted mb-4">Help us keep the roads safe by reporting potholes in your area.</p>
 
-<<<<<<< HEAD
-                    <form id="report-form" method="POST" enctype="multipart/form-data" novalidate>
-                        {% csrf_token %}
-
-                        {% for field in form %}
-                        {% if field.name == 'image' %}
-                        <div class="mb-4">
-                            <label class="form-label fw-bold">Pothole Photo</label>
-
-                            <!-- Camera Interface -->
-                            <div id="camera-container" class="mb-3 d-none">
-                                <div class="position-relative bg-dark rounded overflow-hidden"
-                                    style="aspect-ratio: 4/3;">
-                                    <video id="webcam" autoplay playsinline class="w-100 h-100"
-                                        style="object-fit: cover;"></video>
-                                    <div class="position-absolute bottom-0 start-50 translate-middle-x mb-3">
-                                        <button type="button" id="capture-btn"
-                                            class="btn btn-light btn-lg rounded-circle shadow">
-                                            <i class="bi bi-camera-fill"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Captured Preview -->
-                            <div id="photo-preview-container" class="mb-3 d-none text-center">
-                                <div class="position-relative d-inline-block">
-                                    <img id="photo-preview-img" src="" class="img-thumbnail shadow-sm"
-                                        style="max-height: 300px;">
-                                    <button type="button" id="retake-btn"
-                                        class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2 rounded-circle">
-                                        <i class="bi bi-x-lg"></i>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div class="d-grid gap-2 mb-3">
-                                <button type="button" id="start-camera-btn" class="btn btn-outline-primary">
-                                    <i class="bi bi-camera"></i> Use Live Camera
-                                </button>
-                            </div>
-
-                            <div class="input-group">
-                                <span class="input-group-text"><i class="bi bi-image"></i></span>
-=======
                     <form method="POST" enctype="multipart/form-data" novalidate id="report-form">
                         {% csrf_token %}
 
@@ -184,6 +139,7 @@
                                     </div>
                                 </div>
                             </div>
+                            <div class="form-text">Capture a live photo or upload an existing one.</div>
                             <!-- ===== END IMAGE / CAMERA SECTION ===== -->
 
                             {% elif field.name not in 'latitude,longitude' %}
@@ -198,57 +154,17 @@
                                 {% endif %}
                             </div>
                             {% else %}
->>>>>>> 55676a2 (t)
                                 {{ field }}
-                            </div>
-                            <div class="form-text">Capture a live photo or upload an existing one.</div>
-
-                            {% if field.errors %}
-                            <div class="invalid-feedback d-block">
-                                {{ field.errors.0 }}
-                            </div>
                             {% endif %}
-<<<<<<< HEAD
-                        </div>
-                        <canvas id="canvas" class="d-none"></canvas>
-                        {% elif field.name not in 'latitude,longitude' %}
-=======
                         {% endfor %}
 
                         <!-- Location -->
->>>>>>> 55676a2 (t)
                         <div class="mb-3">
-                            {{ field.label_tag }}
-                            {{ field }}
-                            {% if field.errors %}
-                            <div class="invalid-feedback d-block">
-                                {{ field.errors.0 }}
-                            </div>
-                            {% endif %}
-                        </div>
-                        {% else %}
-                        {{ field }}
-                        {% endif %}
-                        {% endfor %}
-
-                        <div class="mb-4">
                             <label class="form-label fw-bold">Location</label>
-                            <p id="location-status" class="text-muted mb-2 small">Click the button to get your current
-                                location</p>
+                            <p id="location-status" class="text-muted mb-2 small">Click the button to get your current location</p>
                             <button type="button" class="btn btn-outline-secondary w-100" id="get-location-btn">
                                 <i class="bi bi-geo-alt"></i> Get Current Location
                             </button>
-<<<<<<< HEAD
-                            <div id="location-info" class="mt-2 text-center" style="display: none;">
-                                <p class="mb-0"><small>Lat: <span id="lat-display">-</span> | Lon: <span
-                                            id="lon-display">-</span></small></p>
-                            </div>
-                        </div>
-
-                        <button type="submit" id="submit-btn" class="btn btn-primary btn-lg w-100 mb-3 shadow">
-                            <i class="bi bi-cloud-upload me-2"></i> Submit Report
-                        </button>
-=======
                             <div id="location-info" class="mt-2" style="display:none;">
                                 <p><small>Latitude: <span id="lat-display">-</span></small></p>
                                 <p><small>Longitude: <span id="lon-display">-</span></small></p>
@@ -261,7 +177,6 @@
                         <p class="small text-center mt-2" id="submit-hint">
                             Add a photo and wait for AI verification to submit.
                         </p>
->>>>>>> 55676a2 (t)
                     </form>
                 </div>
             </div>
@@ -270,102 +185,6 @@
 </div>
 
 <script>
-<<<<<<< HEAD
-    // Location Logic
-    document.getElementById('get-location-btn').addEventListener('click', function (e) {
-        e.preventDefault();
-        const btn = this;
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Getting location...';
-
-        if ('geolocation' in navigator) {
-            navigator.geolocation.getCurrentPosition(function (position) {
-                const lat = position.coords.latitude;
-                const lon = position.coords.longitude;
-
-                document.getElementById('id_latitude').value = lat;
-                document.getElementById('id_longitude').value = lon;
-                document.getElementById('lat-display').textContent = lat.toFixed(6);
-                document.getElementById('lon-display').textContent = lon.toFixed(6);
-                document.getElementById('location-info').style.display = 'block';
-                document.getElementById('location-status').textContent = 'Location captured successfully!';
-                document.getElementById('location-status').className = 'text-success mb-2 small';
-
-                btn.disabled = false;
-                btn.innerHTML = '<i class="bi bi-geo-alt"></i> Location Captured';
-                btn.className = 'btn btn-success w-100';
-            }, function (error) {
-                alert('Error getting location: ' + error.message);
-                btn.disabled = false;
-                btn.innerHTML = '<i class="bi bi-geo-alt"></i> Get Current Location';
-            });
-        } else {
-            alert('Geolocation is not supported by your browser');
-            btn.disabled = false;
-        }
-    });
-
-    // Camera Logic
-    const video = document.getElementById('webcam');
-    const canvas = document.getElementById('canvas');
-    const startBtn = document.getElementById('start-camera-btn');
-    const captureBtn = document.getElementById('capture-btn');
-    const retakeBtn = document.getElementById('retake-btn');
-    const cameraContainer = document.getElementById('camera-container');
-    const previewContainer = document.getElementById('photo-preview-container');
-    const previewImg = document.getElementById('photo-preview-img');
-    const fileInput = document.getElementById('id_image');
-    let stream = null;
-
-    startBtn.addEventListener('click', async () => {
-        try {
-            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-            video.srcObject = stream;
-            cameraContainer.classList.remove('d-none');
-            startBtn.classList.add('d-none');
-        } catch (err) {
-            alert("Could not access camera: " + err);
-        }
-    });
-
-    captureBtn.addEventListener('click', () => {
-        const context = canvas.getContext('2d');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        const dataUrl = canvas.toDataURL('image/jpeg');
-        previewImg.src = dataUrl;
-
-        // Stop the camera
-        stream.getTracks().forEach(track => track.stop());
-
-        cameraContainer.classList.add('d-none');
-        previewContainer.classList.remove('d-none');
-
-        // Convert base64 to File object and inject into the input
-        fetch(dataUrl)
-            .then(res => res.blob())
-            .then(blob => {
-                const file = new File([blob], "captured_pothole.jpg", { type: "image/jpeg" });
-                const container = new DataTransfer();
-                container.items.add(file);
-                fileInput.files = container.files;
-            });
-    });
-
-    retakeBtn.addEventListener('click', () => {
-        previewContainer.classList.add('d-none');
-        startBtn.click(); // Restart camera
-    });
-
-    // AI Processing State
-    document.getElementById('report-form').addEventListener('submit', function () {
-        const btn = document.getElementById('submit-btn');
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-grow spinner-grow-sm me-2"></span>Analyzing with AI...';
-    });
-=======
 // ════════════════════════════════════════════════════════════════
 // AI Detection Rules — 5-step hybrid (MobileNet + Canvas texture)
 // ════════════════════════════════════════════════════════════════
@@ -853,6 +672,5 @@ document.getElementById('get-location-btn').addEventListener('click', function (
         btn.disabled = false;
     }
 });
->>>>>>> 55676a2 (t)
 </script>
 {% endblock %}

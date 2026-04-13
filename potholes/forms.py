@@ -68,7 +68,6 @@ class PotholeReportForm(forms.ModelForm):
             }),
         }
 
-<<<<<<< HEAD
     def clean_image(self):
         image_file = self.cleaned_data.get('image')
         if not image_file:
@@ -85,7 +84,7 @@ class PotholeReportForm(forms.ModelForm):
             from .ai_analyzer import analyze_pothole_image
             status, guesses, message = analyze_pothole_image(image_bytes)
             
-            if status != 'Verified':
+            if status == 'Rejected':
                 guess_text = " | ".join(guesses)
                 raise ValidationError(
                     f"AI Analysis Result: {status}. {message} "
@@ -99,11 +98,10 @@ class PotholeReportForm(forms.ModelForm):
         except Exception as e:
             # If image processing fails, allow it but log it (for robustness)
             return image_file
-=======
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['description'].required = False
->>>>>>> 55676a2 (t)
 
 
 class PotholeUpdateForm(forms.ModelForm):

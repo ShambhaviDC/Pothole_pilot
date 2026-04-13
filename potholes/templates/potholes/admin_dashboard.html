@@ -4,39 +4,42 @@
 
 {% block content %}
 <div class="container-fluid py-4">
-    <h1 class="mb-4">Admin Dashboard</h1>
+    <div class="p-4 mb-4 text-white rounded-3 shadow-sm" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+        <h1 class="fw-bold mb-0">Admin Dashboard</h1>
+        <p class="mb-0">Municipality Control Center</p>
+    </div>
 
     <!-- Statistics Cards -->
     <div class="row mb-4">
         <div class="col-md-3 mb-3">
-            <div class="card text-center">
+            <div class="card text-center shadow-sm">
                 <div class="card-body">
                     <h6 class="card-title text-muted">Total Reports</h6>
-                    <h2 class="display-6 text-primary">{{ total }}</h2>
+                    <h2 class="display-6 fw-bold text-primary">{{ total }}</h2>
                 </div>
             </div>
         </div>
         <div class="col-md-3 mb-3">
-            <div class="card text-center">
+            <div class="card text-center shadow-sm">
                 <div class="card-body">
                     <h6 class="card-title text-muted">Pending</h6>
-                    <h2 class="display-6 text-warning">{{ pending }}</h2>
+                    <h2 class="display-6 fw-bold text-warning">{{ pending }}</h2>
                 </div>
             </div>
         </div>
         <div class="col-md-3 mb-3">
-            <div class="card text-center">
+            <div class="card text-center shadow-sm">
                 <div class="card-body">
                     <h6 class="card-title text-muted">In Progress</h6>
-                    <h2 class="display-6 text-info">{{ in_progress }}</h2>
+                    <h2 class="display-6 fw-bold text-info">{{ in_progress }}</h2>
                 </div>
             </div>
         </div>
         <div class="col-md-3 mb-3">
-            <div class="card text-center">
+            <div class="card text-center shadow-sm">
                 <div class="card-body">
                     <h6 class="card-title text-muted">Fixed</h6>
-                    <h2 class="display-6 text-success">{{ fixed }}</h2>
+                    <h2 class="display-6 fw-bold text-success">{{ fixed }}</h2>
                 </div>
             </div>
         </div>
@@ -59,7 +62,7 @@
                     <select name="severity" class="form-select" onchange="this.form.submit()">
                         <option value="">All Severities</option>
                         <option value="Low" {% if severity_filter == 'Low' %}selected{% endif %}>Low</option>
-                        <option value="Medium" {% if severity_filter == 'Medium' %}selected{% endif %}>Medium</option>
+                        <option value="Moderate" {% if severity_filter == 'Moderate' %}selected{% endif %}>Moderate</option>
                         <option value="High" {% if severity_filter == 'High' %}selected{% endif %}>High</option>
                     </select>
                 </div>
@@ -97,7 +100,7 @@
                             <td>
                                 <span class="badge 
                                     {% if pothole.severity == 'High' %}bg-danger
-                                    {% elif pothole.severity == 'Medium' %}bg-warning text-dark
+                                    {% elif pothole.severity == 'Moderate' %}bg-warning text-dark
                                     {% else %}bg-success{% endif %}">
                                     {{ pothole.severity }}
                                 </span>

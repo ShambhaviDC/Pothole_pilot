@@ -27,24 +27,30 @@
                         <a class="nav-link" href="{% url 'home' %}">Home</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'community_feed' %}">Feed</a>
+                        <a class="nav-link" href="{% url 'community_feed' %}">
+                            {% if user.is_staff %}Status{% else %}Feed{% endif %}
+                        </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'map_view' %}">Map</a>
                     </li>
+                    {% if not user.is_staff %}
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'report_pothole' %}">Report</a>
                     </li>
+                    {% endif %}
                     {% if user.is_authenticated %}
+                    {% if not user.is_staff %}
                     <li class="nav-item">
-                        <a class="nav-link position-relative" href="{% url 'notifications' %}">
-                            <i class="bi bi-bell"></i> Notifications
+                        <a class="nav-link" href="{% url 'notifications' %}">
+                            Notifications
                             {% if user.profile.unread_notifications_count > 0 %}
                             <span class="badge bg-danger navbar-badge">{{ user.profile.unread_notifications_count
                                 }}</span>
                             {% endif %}
                         </a>
                     </li>
+                    {% endif %}
                     {% if user.is_staff %}
                     <li class="nav-item">
                         <a class="nav-link text-warning"

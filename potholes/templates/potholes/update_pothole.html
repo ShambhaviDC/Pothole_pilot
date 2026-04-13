@@ -13,7 +13,7 @@
                     <!-- Pothole Info -->
                     <div class="alert alert-light border">
                         <h6 class="mb-2">Report Details</h6>
-                        <p><strong>Reporter:</strong> {{ pothole.user.username }}</p>
+                        <p><strong>Report Reference:</strong> #{{ pothole.id }}</p>
                         <p><strong>Description:</strong> {{ pothole.description }}</p>
                         <p class="mb-0"><strong>Severity:</strong> <span class="badge 
                             {% if pothole.severity == 'High' %}bg-danger

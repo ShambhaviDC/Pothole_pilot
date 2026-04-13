@@ -15,7 +15,7 @@ STEP-BY-STEP SETUP
 ================================================================================
 
 1. EXTRACT/NAVIGATE TO PROJECT
-   cd e:\pothole
+   cd e:\pothole pip install -r requirements.txt
    (or wherever you extracted the project)
 
 2. CREATE VIRTUAL ENVIRONMENT
@@ -34,7 +34,7 @@ STEP-BY-STEP SETUP
    source myenv/bin/activate
 
 4. INSTALL DEPENDENCIES
-   pip install -r requirements.txt
+  
    
    This installs:
    - Django 4.2.5 (web framework)

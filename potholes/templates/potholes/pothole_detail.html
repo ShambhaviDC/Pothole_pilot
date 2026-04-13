@@ -22,21 +22,16 @@
 
                     <div class="row mb-4">
                         <div class="col-md-6">
-<<<<<<< HEAD
-                            <h6 class="text-muted">Issue Reference</h6>
-                            <p><strong>Issue #{{ pothole.id }}</strong></p>
-=======
                             <h6 class="text-muted">Report No.</h6>
                             <p><span class="badge bg-secondary fs-6">#{{ pothole.id }}</span></p>
                             <small class="text-muted">Truth Score: <span class="badge bg-info">{{ pothole.user.profile.truth_score }}</span></small>
->>>>>>> 55676a2 (t)
                         </div>
                         <div class="col-md-6">
                             <h6 class="text-muted">Severity</h6>
                             <p>
                                 <span class="badge 
                                     {% if pothole.severity == 'High' %}bg-danger
-                                    {% elif pothole.severity == 'Medium' %}bg-warning text-dark
+                                    {% elif pothole.severity == 'Moderate' %}bg-warning text-dark
                                     {% else %}bg-success{% endif %}">
                                     {{ pothole.severity }}
                                 </span>

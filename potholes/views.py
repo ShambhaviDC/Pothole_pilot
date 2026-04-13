@@ -6,7 +6,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from django.db.models import Q, Exists, OuterRef
+from django.db.models import Q, Exists, OuterRef, Subquery, Case, When, Value, IntegerField
 from django.contrib import messages
 from datetime import timedelta
 from django.utils.timezone import now
@@ -14,6 +14,7 @@ import json
 
 from .models import Pothole, UserProfile, Vote, Notification
 from .forms import UserRegistrationForm, UserLoginForm, PotholeReportForm, PotholeUpdateForm
+from .utils import haversine, get_image_hash, compare_hashes
 
 
 def home(request):
@@ -91,8 +92,18 @@ def user_dashboard(request):
     user = request.user
     profile = user.profile
     user_potholes = user.potholes.all()
-    unread_notifications = user.notifications.filter(is_read=False).count()
+    unread_notifications = 0
     
+    # Cleanup old fixed images automatically (optimized)
+    seven_days_ago = now() - timedelta(days=7)
+    stale_potholes = Pothole.objects.filter(
+        status='Fixed', 
+        image__isnull=False
+    ).filter(Q(fixed_at__lte=seven_days_ago) | Q(fixed_at__isnull=True, updated_at__lte=seven_days_ago))
+    
+    for p in stale_potholes:
+        p.cleanup_old_images()
+
     context = {
         'profile': profile,
         'user_potholes': user_potholes,
@@ -119,10 +130,71 @@ def report_pothole(request):
     if request.method == 'POST':
         form = PotholeReportForm(request.POST, request.FILES)
         if form.is_valid():
+            lat = form.cleaned_data.get('latitude')
+            lng = form.cleaned_data.get('longitude')
+            image = request.FILES.get('image')
+            
+            # Simple validation for coordinates
+            if lat is None or lng is None:
+                # Fallback or error if coordinates are missing (should be handled by frontend)
+                messages.error(request, 'Location information is required.')
+                return render(request, 'potholes/report_pothole.html', {'form': form})
+            
+            # 1. Image Hashing (Optional Enhancement)
+            new_image_hash = get_image_hash(image) if image else None
+            
+            # 2. Duplicate Detection logic
+            # Search for nearby potholes (within 50 meters)
+            potential_duplicates = Pothole.objects.filter(status__in=['Pending', 'In Progress'])
+            duplicate_found = None
+            
+            for existing in potential_duplicates:
+                dist = haversine(lat, lng, existing.latitude, existing.longitude)
+                
+                # Check 1: Very close location (within 15m) -> likely duplicate
+                if dist <= 15:
+                    duplicate_found = existing
+                    break
+                
+                # Check 2: Nearby (15-50m) AND image similarity
+                elif dist <= 50:
+                    if new_image_hash and existing.image_hash:
+                        if compare_hashes(new_image_hash, existing.image_hash, threshold=12):
+                            duplicate_found = existing
+                            break
+            
+            if duplicate_found:
+                # 3. Increment vote/report count instead of creating new record
+                if request.user.is_authenticated:
+                    # prevent duplicate voting for same user
+                    vote, created = Vote.objects.get_or_create(user=request.user, pothole=duplicate_found)
+                    if created:
+                        # Recalculate accurately
+                        duplicate_found.vote_count = duplicate_found.votes.count()
+                        duplicate_found.save()
+                        messages.success(request, 'Thank you for your report! This issue has already been highlighted, and your contribution has been added to the existing record.')
+                    else:
+                        messages.success(request, 'Thank you! Your continued support for this report is noted.')
+                else:
+                    # Anonymous contribution
+                    duplicate_found.vote_count += 1
+                    duplicate_found.save()
+                    messages.success(request, 'Thank you for your report! Your contribution has been added to the community-tracked record of this issue.')
+                
+                return redirect('community_feed')
+
+            # 4. No duplicate found, create new report
             pothole = form.save(commit=False)
             if request.user.is_authenticated:
                 pothole.user = request.user
+            pothole.image_hash = new_image_hash
             pothole.save()
+
+            # Create initial vote for the reporter if logged in
+            if request.user.is_authenticated:
+                Vote.objects.get_or_create(user=request.user, pothole=pothole)
+                pothole.vote_count = 1
+                pothole.save()
             
             # Update user total reports (only if logged in)
             if request.user.is_authenticated:
@@ -168,7 +240,16 @@ def community_feed(request):
     
     if request.user.is_authenticated:
         user_votes = Vote.objects.filter(pothole=OuterRef('pk'), user=request.user)
-        potholes = potholes.annotate(user_has_voted=Exists(user_votes))
+        potholes = potholes.annotate(
+            user_has_voted=Exists(user_votes),
+        )
+    
+    # Always annotate with author truth score for display
+    potholes = potholes.annotate(
+        author_truth_score=Subquery(
+            UserProfile.objects.filter(user=OuterRef('user')).values('truth_score')[:1]
+        )
+    )
 
 
     
@@ -233,7 +314,7 @@ def get_pothole_stats(request):
 
 def potholes_api(request):
     """API endpoint to fetch potholes as JSON for map."""
-    potholes = Pothole.objects.values('id', 'latitude', 'longitude', 'severity', 'image', 'description', 'status')
+    potholes = Pothole.objects.values('id', 'latitude', 'longitude', 'severity', 'image', 'description', 'status', 'ward_number', 'vote_count')
     return JsonResponse(list(potholes), safe=False)
 
 
@@ -282,7 +363,26 @@ def admin_dashboard(request):
         messages.error(request, 'You do not have permission to access this page.')
         return redirect('home')
     
-    potholes = Pothole.objects.all().order_by('-created_at')
+    # Cleanup old fixed images automatically (optimized)
+    seven_days_ago = now() - timedelta(days=7)
+    stale_potholes = Pothole.objects.filter(
+        status='Fixed', 
+        image__isnull=False
+    ).filter(Q(fixed_at__lte=seven_days_ago) | Q(fixed_at__isnull=True, updated_at__lte=seven_days_ago))
+    
+    for p in stale_potholes:
+        p.cleanup_old_images()
+
+    # Sorting: Moderate then Low (and then others like High)
+    potholes = Pothole.objects.all().annotate(
+        severity_priority=Case(
+            When(severity='Moderate', then=Value(1)),
+            When(severity='Low', then=Value(2)),
+            When(severity='High', then=Value(3)),
+            default=Value(4),
+            output_field=IntegerField(),
+        )
+    ).order_by('severity_priority', '-created_at')
     
     # Filter by status
     status_filter = request.GET.get('status')
@@ -301,6 +401,10 @@ def admin_dashboard(request):
     fixed = Pothole.objects.filter(status='Fixed').count()
     invalid = Pothole.objects.filter(status='Invalid').count()
     
+    # Severity Statistics
+    moderate_count = Pothole.objects.filter(severity='Moderate').count()
+    low_count = Pothole.objects.filter(severity='Low').count()
+    
     context = {
         'potholes': potholes,
         'status_filter': status_filter,
@@ -310,6 +414,8 @@ def admin_dashboard(request):
         'in_progress': in_progress,
         'fixed': fixed,
         'invalid': invalid,
+        'moderate_count': moderate_count,
+        'low_count': low_count,
     }
     return render(request, 'potholes/admin_dashboard.html', context)
 
@@ -328,6 +434,17 @@ def update_pothole_status(request, pothole_id):
         form = PotholeUpdateForm(request.POST, request.FILES, instance=pothole)
         if form.is_valid():
             pothole = form.save()
+            
+            # Update Truth Score Logic for the reporter
+            reporter = pothole.user
+            if reporter and hasattr(reporter, 'profile'):
+                profile = reporter.profile
+                if pothole.status == 'Fixed' and old_status != 'Fixed':
+                    profile.truth_score += 10 # Reward for accurate, confirmed reporting
+                    profile.save()
+                elif pothole.status == 'Invalid' and old_status != 'Invalid':
+                    profile.truth_score -= 5 # Penalty for false reporting
+                    profile.save()
             
             # Create notification for reporter (only if not anonymous)
             reporter = pothole.user

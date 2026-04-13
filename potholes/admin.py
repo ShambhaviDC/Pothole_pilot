@@ -11,9 +11,9 @@ class UserProfileAdmin(admin.ModelAdmin):
 
 @admin.register(Pothole)
 class PotholeAdmin(admin.ModelAdmin):
-    list_display = ('id', 'user', 'severity', 'status', 'vote_count', 'created_at')
+    list_display = ('id', 'severity', 'status', 'vote_count', 'created_at')
     list_filter = ('severity', 'status', 'created_at')
-    search_fields = ('user__username', 'description')
+    search_fields = ('description',)
     readonly_fields = ('created_at', 'updated_at', 'vote_count')
     fieldsets = (
         ('Pothole Information', {

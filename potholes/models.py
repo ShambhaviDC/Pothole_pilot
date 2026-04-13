@@ -35,14 +35,14 @@ class UserProfile(models.Model):
 
     @property
     def unread_notifications_count(self):
-        """Return the count of unread notifications."""
-        return self.user.notifications.filter(is_read=False).count()
+        """Return 0 to hide symbols as requested."""
+        return 0
 
 class Pothole(models.Model):
     """Pothole report model."""
     SEVERITY_CHOICES = [
         ('Low', 'Low'),
-        ('Medium', 'Medium'),
+        ('Moderate', 'Moderate'),
         ('High', 'High'),
     ]
     STATUS_CHOICES = [
@@ -58,22 +58,52 @@ class Pothole(models.Model):
     longitude = models.FloatField()
     ward_number = models.IntegerField(default=1)
     description = models.TextField(blank=True, null=True)
-    severity = models.CharField(max_length=10, choices=SEVERITY_CHOICES, default='Medium')
+    severity = models.CharField(max_length=10, choices=SEVERITY_CHOICES, default='Moderate')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Pending')
     vote_count = models.IntegerField(default=0)
     assigned_worker = models.CharField(max_length=100, blank=True, null=True)
     completion_image = models.ImageField(upload_to='completion/', blank=True, null=True)
+    image_hash = models.CharField(max_length=64, blank=True, null=True)
+    fixed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['latitude', 'longitude']),
+        ]
     
     def save(self, *args, **kwargs):
-        """Auto-calculate ward number before saving."""
+        """Auto-calculate ward number and set fixed_at date."""
         if self.latitude and self.longitude:
             self.ward_number = get_ward(self.latitude, self.longitude)
+        
+        # Set fixed_at if status changed to Fixed
+        if self.status == 'Fixed' and not self.fixed_at:
+            self.fixed_at = now()
+        elif self.status != 'Fixed':
+            self.fixed_at = None
+            
         super().save(*args, **kwargs)
+    
+    def cleanup_old_images(self):
+        """Delete image if fixed for more than 7 days."""
+        from django.utils.timezone import now
+        from datetime import timedelta
+        
+        # Use fixed_at if available, otherwise fallback to updated_at for fixed potholes
+        check_date = self.fixed_at or self.updated_at
+        
+        if self.status == 'Fixed' and check_date:
+            if now() > check_date + timedelta(days=7):
+                if self.image:
+                    try:
+                        self.image.delete(save=False)
+                        self.image = None
+                        self.save()
+                    except Exception as e:
+                        print(f"Error deleting image for pothole {self.id}: {e}")
     
     def __str__(self):
         return f"Pothole by {self.user.username} - Ward {self.ward_number}"
