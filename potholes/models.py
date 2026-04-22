@@ -67,11 +67,16 @@ class Pothole(models.Model):
     fixed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_archived = models.BooleanField(default=False)
     
     class Meta:
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['latitude', 'longitude']),
+            models.Index(fields=['status']),
+            models.Index(fields=['severity']),
+            models.Index(fields=['is_archived']),
+            models.Index(fields=['created_at']),
         ]
     
     def save(self, *args, **kwargs):
@@ -130,7 +135,7 @@ class Notification(models.Model):
     ]
     
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
-    pothole = models.ForeignKey(Pothole, on_delete=models.CASCADE, null=True, blank=True)
+    pothole = models.ForeignKey(Pothole, on_delete=models.CASCADE, related_name='notifications', null=True, blank=True)
     notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES, default='fixed')
     message = models.TextField()
     is_read = models.BooleanField(default=False)

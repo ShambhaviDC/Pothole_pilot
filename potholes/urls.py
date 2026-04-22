@@ -28,4 +28,5 @@ urlpatterns = [
     # Admin portal (Municipality)
     path('municipality/dashboard/', views.admin_dashboard, name='admin_dashboard'),
     path('municipality/pothole/<int:pothole_id>/update/', views.update_pothole_status, name='update_pothole'),
+    path('municipality/potholes/delete-old/', views.delete_old_potholes, name='delete_old_potholes'),
 ]
