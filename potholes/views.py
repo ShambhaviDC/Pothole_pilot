@@ -144,30 +144,39 @@ def report_pothole(request):
             new_image_hash = get_image_hash(image) if image else None
             
             # 2. Duplicate Detection logic
-            # Search for nearby potholes (within ~50 meters approx bbox)
-            lat_delta = 0.0005 # ~55 meters
-            lng_delta = 0.0005 # ~55 meters
-            nearby_bbox = Pothole.objects.filter(
-                status__in=['Pending', 'In Progress'],
-                latitude__range=(lat - lat_delta, lat + lat_delta),
-                longitude__range=(lng - lng_delta, lng + lng_delta)
-            )
-            
             duplicate_found = None
-            for existing in nearby_bbox:
-                dist = haversine(lat, lng, existing.latitude, existing.longitude)
+            
+            # Check A: Global Image Hash Check (Catch identical images anywhere)
+            if new_image_hash:
+                identical_image = Pothole.objects.filter(image_hash=new_image_hash, status__in=['Pending', 'In Progress']).first()
+                if identical_image:
+                    duplicate_found = identical_image
+            
+            # Check B: Location-based Check (If no identical image found yet)
+            if not duplicate_found:
+                # Search for nearby potholes (within ~50 meters approx bbox)
+                lat_delta = 0.0005 # ~55 meters
+                lng_delta = 0.0005 # ~55 meters
+                nearby_bbox = Pothole.objects.filter(
+                    status__in=['Pending', 'In Progress'],
+                    latitude__range=(lat - lat_delta, lat + lat_delta),
+                    longitude__range=(lng - lng_delta, lng + lng_delta)
+                )
                 
-                # Check 1: Very close location (within 15m) -> likely duplicate
-                if dist <= 15:
-                    duplicate_found = existing
-                    break
-                
-                # Check 2: Nearby (15-50m) AND image similarity
-                elif dist <= 50:
-                    if new_image_hash and existing.image_hash:
-                        if compare_hashes(new_image_hash, existing.image_hash, threshold=12):
-                            duplicate_found = existing
-                            break
+                for existing in nearby_bbox:
+                    dist = haversine(lat, lng, existing.latitude, existing.longitude)
+                    
+                    # Check 1: Very close location (within 15m) -> likely duplicate
+                    if dist <= 15:
+                        duplicate_found = existing
+                        break
+                    
+                    # Check 2: Nearby (15-50m) AND image similarity
+                    elif dist <= 50:
+                        if new_image_hash and existing.image_hash:
+                            if compare_hashes(new_image_hash, existing.image_hash, threshold=12):
+                                duplicate_found = existing
+                                break
             
             if duplicate_found:
                 # 3. Increment vote/report count instead of creating new record
