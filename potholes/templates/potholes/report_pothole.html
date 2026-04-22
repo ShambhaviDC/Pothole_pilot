@@ -132,9 +132,8 @@
                                         </div>
                                     </div>
 
-                                    <!-- Prediction bars -->
+                                    <!-- Prediction bars (Hidden as requested) -->
                                     <div id="ai-predictions" style="display:none;">
-                                        <p class="small text-muted fw-semibold mb-1">Top AI detections:</p>
                                         <div id="ai-pred-bars"></div>
                                     </div>
                                 </div>
@@ -375,9 +374,7 @@ async function analyseImage(imgElement) {
 
     // ── Step 1: Confidence floor ──────────────────────────────────
     if (topConf < MIN_CONFIDENCE) {
-        showVerdict(false, 'Image Rejected',
-            `Image is too unclear to analyse (confidence: ${pct(topConf)}). Please use a real outdoor pothole photo.`,
-            top5.slice(0, 3));
+        showVerdict(false, 'Not a Pothole', 'Image Rejected ❌', []);
         disableSubmit(); return;
     }
 
@@ -392,9 +389,7 @@ async function analyseImage(imgElement) {
     }
 
     if (blockedLabel) {
-        showVerdict(false, 'Image Rejected',
-            `This looks like a "${blockedLabel}" image, not a road or pothole.`,
-            top5.slice(0, 3));
+        showVerdict(false, 'Not a Pothole', 'Image Rejected ❌', []);
         disableSubmit(); return;
     }
 
@@ -402,9 +397,7 @@ async function analyseImage(imgElement) {
     const HIGH_DAMAGE = ['pothole', 'crater', 'fault', 'fissure', 'rubble'];
     for (const pred of top5.slice(0, 3)) {
         if (HIGH_DAMAGE.some(kw => pred.className.toLowerCase().includes(kw)) && pred.probability > 0.18) {
-            showVerdict(true, 'Road Damage Detected ✓',
-                'AI has identified a high-probability damage pattern. You may submit.',
-                top5.slice(0, 3));
+            showVerdict(true, 'Pothole Detected', 'Image Accepted ✓', []);
             enableSubmit(); return;
         }
     }
@@ -419,24 +412,16 @@ async function analyseImage(imgElement) {
     const IS_ROAD    = (grayRatio > 0.20);
 
     if (HAS_DAMAGE && IS_ROAD) {
-        showVerdict(true, 'Image Accepted ✓',
-            'Texture analysis confirms surface irregularities/damage. You may submit.',
-            top5.slice(0, 3));
+        showVerdict(true, 'Pothole Detected', 'Image Accepted ✓', []);
         enableSubmit();
     } else if (!IS_ROAD && grayRatio < 0.10) {
-        showVerdict(false, 'Image Rejected',
-            'Image does not appear to be a road surface. Please upload a clear photo of the pothole.',
-            top5.slice(0, 3));
+        showVerdict(false, 'Not a Pothole', 'Image Rejected ❌', []);
         disableSubmit();
     } else if (roughness > 0.40) {
-        showVerdict(false, 'Image Rejection (Clutter)',
-            'Image has too much environmental interference (likely shadows or foliage). Please get a clearer shot.',
-            top5.slice(0, 3));
+        showVerdict(false, 'Not a Pothole', 'Image Rejected ❌', []);
         disableSubmit();
     } else {
-        showVerdict(false, 'Plain Road Rejected',
-            'This looks like a clean road with no major damage. Only report actual potholes.',
-            top5.slice(0, 3));
+        showVerdict(false, 'Not a Pothole', 'Image Rejected ❌', []);
         disableSubmit();
     }
 }
@@ -464,20 +449,9 @@ function showVerdict(success, title, msg, preds) {
     document.getElementById('ai-verdict-title').textContent = title;
     document.getElementById('ai-verdict-msg').textContent   = msg;
     banner.style.display = 'flex';
-
-    if (preds.length) {
-        const colour = success ? '#198754' : '#dc3545';
-        document.getElementById('ai-pred-bars').innerHTML = preds.map(p => `
-            <div class="mb-2">
-                <div class="d-flex justify-content-between small mb-1">
-                    <span>${p.className}</span><span>${pct(p.probability)}</span>
-                </div>
-                <div class="ai-guess-bar">
-                    <div class="ai-guess-fill" style="width:${pct(p.probability)};background:${colour};"></div>
-                </div>
-            </div>`).join('');
-        document.getElementById('ai-predictions').style.display = 'block';
-    }
+    
+    // Prediction bars are hidden as requested
+    document.getElementById('ai-predictions').style.display = 'none';
 }
 
 function enableSubmit() {
