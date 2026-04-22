@@ -2,15 +2,16 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.conf import settings
 from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from django.db.models import Q, Exists, OuterRef, Subquery, Case, When, Value, IntegerField
+from django.db.models import Q, Exists, OuterRef, Subquery, Case, When, Value, IntegerField, Count
 from django.contrib import messages
 from datetime import timedelta
 from django.utils.timezone import now
 import json
+from functools import wraps
 
 from .models import Pothole, UserProfile, Vote, Notification
 from .forms import UserRegistrationForm, UserLoginForm, PotholeReportForm, PotholeUpdateForm
@@ -20,8 +21,8 @@ from .utils import haversine, get_image_hash, compare_hashes
 def home(request):
     """Home page view."""
     context = {
-        'total_potholes': Pothole.objects.count(),
-        'total_fixed': Pothole.objects.filter(status='Fixed').count(),
+        'total_potholes': Pothole.objects.filter(is_archived=False).count(),
+        'total_fixed': Pothole.objects.filter(status='Fixed', is_archived=False).count(),
     }
     return render(request, 'potholes/home.html', context)
 
@@ -91,7 +92,7 @@ def user_dashboard(request):
     """User dashboard view."""
     user = request.user
     profile = user.profile
-    user_potholes = user.potholes.all()
+    user_potholes = user.potholes.filter(is_archived=False)
     unread_notifications = 0
     
     # Cleanup old fixed images automatically (optimized)
@@ -100,9 +101,8 @@ def user_dashboard(request):
         status='Fixed', 
         image__isnull=False
     ).filter(Q(fixed_at__lte=seven_days_ago) | Q(fixed_at__isnull=True, updated_at__lte=seven_days_ago))
-    
-    for p in stale_potholes:
-        p.cleanup_old_images()
+    # Deferred image cleanup for performance
+
 
     context = {
         'profile': profile,
@@ -144,11 +144,17 @@ def report_pothole(request):
             new_image_hash = get_image_hash(image) if image else None
             
             # 2. Duplicate Detection logic
-            # Search for nearby potholes (within 50 meters)
-            potential_duplicates = Pothole.objects.filter(status__in=['Pending', 'In Progress'])
-            duplicate_found = None
+            # Search for nearby potholes (within ~50 meters approx bbox)
+            lat_delta = 0.0005 # ~55 meters
+            lng_delta = 0.0005 # ~55 meters
+            nearby_bbox = Pothole.objects.filter(
+                status__in=['Pending', 'In Progress'],
+                latitude__range=(lat - lat_delta, lat + lat_delta),
+                longitude__range=(lng - lng_delta, lng + lng_delta)
+            )
             
-            for existing in potential_duplicates:
+            duplicate_found = None
+            for existing in nearby_bbox:
                 dist = haversine(lat, lng, existing.latitude, existing.longitude)
                 
                 # Check 1: Very close location (within 15m) -> likely duplicate
@@ -212,8 +218,8 @@ def report_pothole(request):
 
 
 def community_feed(request):
-    """Community feed view showing all pothole reports."""
-    potholes = Pothole.objects.all()
+    """Community feed view showing all non-archived pothole reports."""
+    potholes = Pothole.objects.filter(is_archived=False)
     
     # Filter by severity if provided
     severity_filter = request.GET.get('severity')
@@ -313,8 +319,8 @@ def get_pothole_stats(request):
 
 
 def potholes_api(request):
-    """API endpoint to fetch potholes as JSON for map."""
-    potholes = Pothole.objects.values('id', 'latitude', 'longitude', 'severity', 'image', 'description', 'status', 'ward_number', 'vote_count')
+    """API endpoint to fetch non-archived potholes as JSON for map."""
+    potholes = Pothole.objects.filter(is_archived=False).values('id', 'latitude', 'longitude', 'severity', 'image', 'description', 'status', 'ward_number', 'vote_count')
     return JsonResponse(list(potholes), safe=False)
 
 
@@ -345,23 +351,18 @@ def mark_notification_as_read(request, notification_id):
 
 # ============== ADMIN VIEWS ==============
 
-@login_required
 def admin_required(view_func):
     """Decorator to check if user is admin/staff."""
-    def wrapper(request, *args, **kwargs):
-        if not request.user.is_staff:
-            messages.error(request, 'You do not have permission to access this page.')
-            return redirect('home')
-        return view_func(request, *args, **kwargs)
-    return wrapper
+    return user_passes_test(
+        lambda u: u.is_staff,
+        login_url='login'
+    )(view_func)
 
 
 @login_required
+@admin_required
 def admin_dashboard(request):
     """Admin dashboard showing all pothole reports."""
-    if not request.user.is_staff:
-        messages.error(request, 'You do not have permission to access this page.')
-        return redirect('home')
     
     # Cleanup old fixed images automatically (optimized)
     seven_days_ago = now() - timedelta(days=7)
@@ -369,12 +370,12 @@ def admin_dashboard(request):
         status='Fixed', 
         image__isnull=False
     ).filter(Q(fixed_at__lte=seven_days_ago) | Q(fixed_at__isnull=True, updated_at__lte=seven_days_ago))
-    
-    for p in stale_potholes:
-        p.cleanup_old_images()
+    # Image cleanup is handled during the archival process
+
+
 
     # Sorting: Moderate then Low (and then others like High)
-    potholes = Pothole.objects.all().annotate(
+    potholes = Pothole.objects.filter(is_archived=False).annotate(
         severity_priority=Case(
             When(severity='Moderate', then=Value(1)),
             When(severity='Low', then=Value(2)),
@@ -394,16 +395,34 @@ def admin_dashboard(request):
     if severity_filter:
         potholes = potholes.filter(severity=severity_filter)
     
-    # Statistics
-    total_potholes = Pothole.objects.count()
-    pending = Pothole.objects.filter(status='Pending').count()
-    in_progress = Pothole.objects.filter(status='In Progress').count()
-    fixed = Pothole.objects.filter(status='Fixed').count()
-    invalid = Pothole.objects.filter(status='Invalid').count()
+    # Statistics (optimized)
+    stats_query = Pothole.objects.filter(is_archived=False).values('status').annotate(count=Count('id'))
+    stats_dict = {item['status']: item['count'] for item in stats_query}
     
-    # Severity Statistics
-    moderate_count = Pothole.objects.filter(severity='Moderate').count()
-    low_count = Pothole.objects.filter(severity='Low').count()
+    total_potholes = sum(stats_dict.values())
+    pending = stats_dict.get('Pending', 0)
+    in_progress = stats_dict.get('In Progress', 0)
+    fixed = stats_dict.get('Fixed', 0)
+    invalid = stats_dict.get('Invalid', 0)
+    
+    # Severity Statistics (optimized)
+    severity_query = Pothole.objects.filter(is_archived=False).values('severity').annotate(count=Count('id'))
+    severity_dict = {item['severity']: item['count'] for item in severity_query}
+    
+    moderate_count = severity_dict.get('Moderate', 0)
+    low_count = severity_dict.get('Low', 0)
+    
+    # Deletable Potholes (Fixed, Notified, > 7 days ago)
+    deletable_potholes = Pothole.objects.filter(
+        status='Fixed',
+        is_archived=False
+    ).filter(
+        Q(fixed_at__lte=seven_days_ago) | Q(fixed_at__isnull=True, updated_at__lte=seven_days_ago)
+    ).filter(
+        notifications__notification_type='fixed'
+    ).distinct()
+    
+    deletable_count = deletable_potholes.count()
     
     context = {
         'potholes': potholes,
@@ -416,16 +435,15 @@ def admin_dashboard(request):
         'invalid': invalid,
         'moderate_count': moderate_count,
         'low_count': low_count,
+        'deletable_count': deletable_count,
     }
     return render(request, 'potholes/admin_dashboard.html', context)
 
 
 @login_required
+@admin_required
 def update_pothole_status(request, pothole_id):
     """Update pothole status (admin only)."""
-    if not request.user.is_staff:
-        messages.error(request, 'You do not have permission to access this page.')
-        return redirect('home')
     
     pothole = get_object_or_404(Pothole, id=pothole_id)
     old_status = pothole.status
@@ -467,6 +485,33 @@ def update_pothole_status(request, pothole_id):
         'pothole': pothole,
     }
     return render(request, 'potholes/update_pothole.html', context)
+
+
+@login_required
+@admin_required
+@require_POST
+def delete_old_potholes(request):
+    """Archive all potholes that are fixed, notified, and > 7 days old (soft delete)."""
+    seven_days_ago = now() - timedelta(days=7)
+    
+    deletable_potholes = Pothole.objects.filter(
+        status='Fixed',
+        is_archived=False
+    ).filter(
+        Q(fixed_at__lte=seven_days_ago) | Q(fixed_at__isnull=True, updated_at__lte=seven_days_ago)
+    ).filter(
+        notifications__notification_type='fixed'
+    ).distinct()
+    
+    count = deletable_potholes.count()
+    if count > 0:
+        # Soft delete: mark as archived instead of removing from DB
+        deletable_potholes.update(is_archived=True)
+        messages.success(request, f'Successfully archived {count} pothole records. They are hidden but remain in the database for historical records.')
+    else:
+        messages.info(request, 'No records found to archive.')
+        
+    return redirect('admin_dashboard')
 
 
 def pothole_detail(request, pothole_id):
